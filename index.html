@@ -1,249 +1,856 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Classroom Import — Test</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 20px;
-      color: #111827;
-    }
-    button,
-    select {
-      padding: 8px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      background: white;
-    }
-    button:not(:disabled) {
-      cursor: pointer;
-    }
-    button:disabled,
-    select:disabled {
-      opacity: 0.5;
-    }
-    #out {
-      margin-top: 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 10px;
-      min-height: 120px;
-    }
-    .item {
-      padding: 8px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      margin: 6px 0;
-    }
-    .notice {
-      padding: 10px;
-      margin-bottom: 16px;
-      border-radius: 8px;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      color: #9a3412;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Assignment Tracker — LITE + AI Outlines & Quizzes</title>
+<style>
+  :root{
+    --bg:#f4f4f5; --card:#fff; --ink:#0f172a; --muted:#52525b; --line:#e4e4e7;
+    --btn:#111827; --btn-ink:#fff; --ghost-bg:#fff; --accent:#2563eb;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .head{position:sticky;top:0;background:#ffffffcc;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:10}
+  h1{font-size:20px;margin:0;font-weight:800}
+  .row{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:980px){ .row{grid-template-columns:280px 1fr} }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .card-b{padding:14px}
+  .btn{display:inline-flex;align-items:center;gap:.45rem;border:none;border-radius:9999px;background:var(--btn);color:var(--btn-ink);padding:.5rem .9rem;font-weight:700}
+  .btn:hover{opacity:.9} .btn:disabled{opacity:.4}
+  .accent{background:var(--accent);color:#fff}
+  .ghost{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--line);border-radius:9999px;background:var(--ghost-bg);padding:.4rem .8rem}
+  .ghost:hover{background:#f4f4f5}
+  .input,.area,.select{width:100%;border:1px solid var(--line);border-radius:12px;padding:.55rem .7rem;font-size:14px;background:#fff}
+  .area{min-height:110px}
+  .select{background:#fff}
+  .list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .item{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
+  .item.active{border-color:#000}
+  .tabs{display:flex;flex-wrap:wrap;gap:8px}
+  .tab{border:1px solid var(--line);border-radius:9999px;padding:.4rem .9rem;font-size:14px;background:#fff}
+  .tab.active{background:#111827;color:#fff;border-color:#111827}
+  .muted{color:var(--muted);font-size:12px}
+  .hint{font-size:12px;color:#6b7280}
+  .grid{display:grid;gap:12px}
+  @media(min-width:720px){ .grid-3{grid-template-columns:1fr 1fr 1fr} }
+  .files{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .file{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-top:1px solid var(--line);background:#fff}
+  .file:first-child{border-top:none}
+  .right{display:flex;align-items:center;gap:8px}
+  .wfull{width:100%}
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:12px;z-index:50}
+  .modal.open{display:flex}
+  .modal-card{width:min(100%, 980px);max-height:90vh;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+  .modal-h{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .modal-b{padding:0;background:#f1f5f9;overflow:auto}
+  .doc-canvas{display:flex;justify-content:center;align-items:flex-start;min-height:60vh;padding:20px 0}
+  .doc-page{background:#fff;width:8.5in;min-height:11in;padding:1in;box-shadow:0 0 0 1px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.1)}
+  .doc-edit{min-height:9in;outline:none;font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.45}
+  .toolbar{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--line);background:#fff}
+  .tbtn{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff}
+  .tbtn.active{background:#111827;color:#fff;border-color:#111827}
+  @media print{ .no-print{display:none!important} .doc-canvas{background:#fff} .doc-page{box-shadow:none;width:auto;min-height:auto;padding:.75in} }
+  /* Error box */
+  .err{position:fixed;inset:auto 12px 12px 12px;background:#fff;border:1px solid #fecaca;color:#b91c1c;border-left:6px solid #ef4444;border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.1);z-index:60;display:none}
+  .err.show{display:block}
+  /* Quiz */
+  .quiz-q{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .quiz-input{width:100%;border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;font-size:15px}
+  .pill{display:inline-block;padding:.2rem .6rem;border:1px solid var(--line);border-radius:9999px;background:#fff;font-size:12px;margin-right:6px}
+  .sep{height:1px;background:var(--line);margin:10px 0}
+</style>
 </head>
 <body>
-  <h1>Classroom Import — Test</h1>
-
-  <div class="notice">
-    Before using this page, replace <strong>PASTE_YOUR_CLIENT_ID</strong> in the code with your Google OAuth Client ID. Open this page through a local web server such as <strong>http://localhost:8000/classroom-test.html</strong>, not by double-clicking it as a file.
+  <div class="head">
+    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+      <h1>📚 School Assignment Tracker — LITE + AI Outlines & Quizzes</h1>
+      <div class="right">
+        <span class="hint">Local data</span>
+        <button class="ghost" id="settingsBtn">Settings</button>
+        <button class="ghost" id="resetBtn">Reset App</button>
+      </div>
+    </div>
   </div>
 
-  <button id="connect">1) Connect Google</button>
-  <span id="who" style="color:#555"></span>
-  <br><br>
+  <div class="wrap">
+    <div class="row" id="app"></div>
+  </div>
 
-  <button id="listCourses" disabled>2) List Courses</button>
-  <select id="course" disabled></select>
-  <button id="listMaterials" disabled>3) List Materials</button>
-
-  <div id="out"></div>
-
-  <script>
-  (function(){
-    const CLIENT_ID = "PASTE_YOUR_CLIENT_ID";
-    const SCOPES = [
-      "https://www.googleapis.com/auth/classroom.courses.readonly",
-      "https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly",
-      "https://www.googleapis.com/auth/drive.readonly"
-    ].join(" ");
-
-    let accessToken = null;
-    let tokenClient = null;
-    const $ = s => document.querySelector(s);
-    const out = $("#out");
-
-    function showError(prefix, error) {
-      const detail = error && error.message ? error.message : String(error || "Unknown error");
-      out.textContent = prefix + ": " + detail;
-      console.error(prefix, error);
-    }
-
-    $("#connect").onclick = () => {
-      if (CLIENT_ID === "PASTE_YOUR_CLIENT_ID") {
-        out.textContent = "Open this HTML file in a text editor and replace PASTE_YOUR_CLIENT_ID with the Client ID from Google Cloud.";
-        return;
-      }
-      if (!window.google || !google.accounts || !google.accounts.oauth2) {
-        out.textContent = "Google's sign-in library has not loaded. Check your internet connection, then reload this page.";
-        return;
-      }
-
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        ux_mode: "popup",
-        callback: (resp) => {
-          if (resp.error) {
-            showError("Google sign-in failed", resp);
-            return;
-          }
-          accessToken = resp.access_token;
-          $("#who").textContent = "Connected.";
-          $("#listCourses").disabled = false;
-          out.textContent = "Connected to Google. Click “List Courses.”";
-        }
-      });
-      tokenClient.requestAccessToken();
-    };
-
-    $("#listCourses").onclick = async () => {
-      try {
-        out.textContent = "Loading courses…";
-        const response = await fetch(
-          "https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE",
-          { headers: { Authorization: "Bearer " + accessToken } }
-        );
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || "Unable to list courses.");
-        if (!data.courses?.length) {
-          out.textContent = "No active courses were found for this Google account.";
-          return;
-        }
-        $("#course").innerHTML = data.courses
-          .map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`)
-          .join("");
-        $("#course").disabled = false;
-        $("#listMaterials").disabled = false;
-        out.textContent = "Pick a course, then click “List Materials.”";
-      } catch (error) {
-        showError("Could not load courses", error);
-      }
-    };
-
-    $("#listMaterials").onclick = async () => {
-      try {
-        const id = $("#course").value;
-        if (!id) return;
-        out.textContent = "Loading materials…";
-        const response = await fetch(
-          `https://classroom.googleapis.com/v1/courses/${encodeURIComponent(id)}/courseWorkMaterials`,
-          { headers: { Authorization: "Bearer " + accessToken } }
-        );
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || "Unable to list materials.");
-
-        const items = [];
-        for (const materialGroup of (data.courseWorkMaterial || [])) {
-          for (const material of (materialGroup.materials || [])) {
-            const driveFile = material.driveFile && material.driveFile.driveFile;
-            if (driveFile?.id) {
-              items.push({ id: driveFile.id, name: driveFile.title || driveFile.id });
-            }
-          }
-        }
-
-        if (!items.length) {
-          out.textContent = "No Google Drive attachments were found in this course's Materials section.";
-          return;
-        }
-
-        out.innerHTML = items.map(item => `
-          <div class="item">
-            <b>${escapeHtml(item.name)}</b>
-            <button data-id="${escapeHtml(item.id)}" class="downloadButton">Import (download)</button>
+  <!-- Document Modal -->
+  <div class="modal" id="docModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-h no-print">
+        <strong id="docTitle">Document</strong>
+        <div class="right">
+          <button class="ghost" id="saveDocBtn">Save</button>
+          <button class="ghost" id="acceptToTestBtn">Accept → Test Outline</button>
+          <button class="ghost" id="acceptToClassBtn">Accept → Class Outline</button>
+          <button class="ghost" id="exportDocBtn">Export (.doc)</button>
+          <button class="btn" id="closeDocBtn">Close</button>
+        </div>
+      </div>
+      <div class="toolbar no-print">
+        <button class="tbtn" onclick="execCmd('bold')"><b>B</b></button>
+        <button class="tbtn" onclick="execCmd('italic')"><i>I</i></button>
+        <button class="tbtn" onclick="execCmd('underline')"><u>U</u></button>
+        <button class="tbtn" onclick="execCmd('insertUnorderedList')">• List</button>
+        <button class="tbtn" onclick="execCmd('insertOrderedList')">1. List</button>
+        <button class="tbtn" onclick="execCmd('formatBlock','H1')">H1</button>
+        <button class="tbtn" onclick="execCmd('formatBlock','H2')">H2</button>
+        <button class="tbtn" onclick="execCmd('formatBlock','P')">P</button>
+      </div>
+      <div class="modal-b">
+        <div class="doc-canvas">
+          <div class="doc-page">
+            <div id="docEditor" class="doc-edit" contenteditable="true"></div>
           </div>
-        `).join("");
+        </div>
+      </div>
+    </div>
+  </div>
 
-        document.querySelectorAll(".downloadButton").forEach(button => {
-          button.onclick = () => importDriveFile(button.dataset.id);
-        });
-      } catch (error) {
-        showError("Could not load materials", error);
+  <!-- Quiz Modal -->
+  <div class="modal" id="quizModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-h no-print">
+        <strong id="quizTitle">Quiz</strong>
+        <div class="right">
+          <span class="pill" id="quizProgress">0/0</span>
+          <span class="pill" id="quizScore">Score: 0</span>
+          <button class="ghost" id="quizPrevBtn">Prev</button>
+          <button class="ghost" id="quizNextBtn">Next</button>
+          <button class="btn" id="quizCloseBtn">Close</button>
+        </div>
+      </div>
+      <div class="modal-b">
+        <div class="wrap" id="quizBody" style="max-width:860px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-h no-print">
+        <strong>Settings</strong>
+        <div class="right">
+          <button class="btn" id="settingsCloseBtn">Close</button>
+        </div>
+      </div>
+      <div class="modal-b">
+        <div class="wrap" style="max-width:860px">
+          <div class="card">
+            <div class="card-h"><b>Optional: OpenAI API</b></div>
+            <div class="card-b">
+              <div class="hint">If you provide an API key, outlines can be generated with GPT. Otherwise a local on-device summarizer is used.</div>
+              <div class="sep"></div>
+              <label class="hint">OpenAI API Key</label>
+              <input class="input" id="apiKeyInput" placeholder="sk-...">
+              <div style="margin-top:10px">
+                <button class="btn accent" id="saveSettingsBtn">Save Settings</button>
+                <button class="ghost" id="clearSettingsBtn">Clear</button>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-h"><b>PDF Extraction</b></div>
+            <div class="card-b">
+              <div class="hint">For PDFs, this app will try to load PDF.js from a CDN. If you're fully offline, upload .txt/.md for best results.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="err" id="errBox">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+      <div><strong style="display:block;margin-bottom:4px">Something crashed.</strong>
+        <div style="font-size:13px">Tap <b>Reset App</b> to clear saved data. If it happens again, screenshot this error and send it to me.</div>
+        <pre id="errText" style="margin-top:8px;background:#f9fafb;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:180px;overflow:auto;font-size:12px;white-space:pre-wrap"></pre>
+      </div>
+      <button class="btn" onclick="resetAll()">Reset App</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const STORAGE_KEY = "assignLite_v3_ai_semesters";
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const uid = ()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
+  const safe = (s)=>String(s||"");
+  const SETTINGS_KEY = "assignLite_settings_v1";
+
+  function termLabel(term){ return term==="Spring"?"Spring":"Fall"; }
+  function semesterName(s){ return termLabel(s.term)+" "+s.year; }
+
+  // ---- Load data ----
+  const state = load();
+  function load(){
+    try{
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const d = JSON.parse(raw);
+        return sanitize(d);
       }
-    };
+      return { kids:[], activeKidId:"", activeSemesterId:"", activeClassId:"", activeTestId:"", settings:loadSettings() };
+    }catch(e){
+      return { kids:[], activeKidId:"", activeSemesterId:"", activeClassId:"", activeTestId:"", settings:loadSettings() };
+    }
+  }
+  function loadSettings(){
+    try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"); }catch(e){ return {}; }
+  }
+  function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+  function saveSettings(s){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }catch(e){} }
 
-    async function importDriveFile(fileId) {
-      try {
-        out.textContent = "Fetching file…";
-        const metaResponse = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType`,
-          { headers: { Authorization: "Bearer " + accessToken } }
-        );
-        const meta = await metaResponse.json();
-        if (!metaResponse.ok) throw new Error(meta.error?.message || "Unable to read file information.");
+  function sanitize(d){
+    d.kids = Array.isArray(d.kids)?d.kids:[];
+    d.kids = d.kids.map(k=>({
+      id:k.id||uid(),
+      name:safe(k.name||"Unnamed"),
+      semesters:Array.isArray(k.semesters)?k.semesters.map(s=>({
+        id:s.id||uid(),
+        term:(s.term==="Spring"?"Spring":"Fall"),
+        year:Number(s.year)|| new Date().getFullYear(),
+        classes:Array.isArray(s.classes)?s.classes.map(c=>({
+          id:c.id||uid(),
+          name:safe(c.name||"Untitled class"),
+          classOutlineHtml:safe(c.classOutlineHtml||""),
+          classesTags:Array.isArray(c.classesTags)?c.classesTags:[],
+          tests:Array.isArray(c.tests)?c.tests.map(t=>({
+            id:t.id||uid(),
+            name:safe(t.name||"Untitled test"),
+            files:Array.isArray(t.files)?t.files.map(f=>({
+              id:f.id||uid(),
+              name:safe(f.name||"file"),
+              size:Number(f.size)||0,
+              type:safe(f.type||""),
+              url:safe(f.url||""),
+              addedAt:safe(f.addedAt||new Date().toISOString()),
+              outlineHtml:safe(f.outlineHtml||""),
+              acceptedToTest: !!f.acceptedToTest,
+              acceptedToClass: !!f.acceptedToClass
+            })) : [],
+            notes:safe(t.notes||""),
+            dueDate:safe(t.dueDate||""),
+            docHtml:safe(t.docHtml||""),            // legacy
+            docUpdatedAt:safe(t.docUpdatedAt||""),  // legacy
+            testOutlineHtml:safe(t.testOutlineHtml||"")
+          })) : []
+        })) : []
+      })) : []
+    }));
+    if(!d.kids.find(k=>k.id===d.activeKidId)) d.activeKidId = d.kids[0]?.id||"";
+    const kid = d.kids.find(k=>k.id===d.activeKidId);
+    if(!kid?.semesters.find(s=>s.id===d.activeSemesterId)) d.activeSemesterId = kid?.semesters?.[0]?.id||"";
+    const sem = kid?.semesters.find(s=>s.id===d.activeSemesterId);
+    if(!sem?.classes.find(c=>c.id===d.activeClassId)) d.activeClassId = sem?.classes?.[0]?.id||"";
+    const cls = sem?.classes.find(c=>c.id===d.activeClassId);
+    if(!cls?.tests.find(t=>t.id===d.activeTestId)) d.activeTestId = cls?.tests?.[0]?.id||"";
+    d.settings = d.settings || loadSettings();
+    return d;
+  }
 
-        let blob;
-        let fileName = meta.name || "file";
+  // ---------- UI RENDER ----------
+  function render(){
+    const app = $("#app");
+    const kid = state.kids.find(k=>k.id===state.activeKidId);
+    const semesters = kid?.semesters||[];
+    const sem = semesters.find(s=>s.id===state.activeSemesterId);
+    const classes = sem?.classes||[];
+    const cls = classes.find(c=>c.id===state.activeClassId);
+    const tests = cls?.tests||[];
+    const tst = tests.find(t=>t.id===state.activeTestId);
 
-        if ((meta.mimeType || "").startsWith("application/vnd.google-apps")) {
-          const exportMap = {
-            "application/vnd.google-apps.document": "text/html",
-            "application/vnd.google-apps.presentation": "application/pdf",
-            "application/vnd.google-apps.spreadsheet": "text/csv"
-          };
-          const exportType = exportMap[meta.mimeType] || "application/pdf";
-          const exportResponse = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(exportType)}`,
-            { headers: { Authorization: "Bearer " + accessToken } }
-          );
-          if (!exportResponse.ok) {
-            const errorData = await exportResponse.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || "Unable to export the Google file.");
+    app.innerHTML = `
+      <div class="card">
+        <div class="card-h"><div><b>Kids / Profiles</b></div>
+          <button class="ghost" data-action="add-kid">+ Add</button>
+        </div>
+        <div class="card-b">
+          ${state.kids.length===0? `<div class="muted">No profiles yet. Add your first kid.</div>` : `
+            <ul class="list">
+              ${state.kids.map(k=>`
+                <li class="item ${k.id===state.activeKidId?'active':''}">
+                  <button class="wfull" data-action="pick-kid" data-id="${k.id}" style="text-align:left">
+                    <div style="font-weight:600">${escapeHtml(k.name||'Unnamed')}</div>
+                    <div class="muted">${(k.semesters||[]).length} semesters</div>
+                  </button>
+                  <div class="right">
+                    <button class="ghost" data-action="rename-kid" data-id="${k.id}">Rename</button>
+                    <button class="ghost" data-action="remove-kid" data-id="${k.id}">Remove</button>
+                  </div>
+                </li>`).join("")}
+            </ul>
+          `}
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <input class="input" placeholder="Add kid (quick)" id="kidQuick">
+            <button class="btn" data-action="quick-add-kid">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><div><b>${kid? escapeHtml(kid.name)+"’s Semesters" : "Semesters"}</b></div>
+          ${kid? `<button class="ghost" data-action="add-semester">+ Semester</button>`:''}
+        </div>
+        <div class="card-b">
+          ${!kid? `<div class="muted">Select or add a kid to manage semesters.</div>` :
+            (semesters.length===0? `<div class="muted">No semesters yet. Add Spring/Fall + Year below.</div>` :
+              `<div class="tabs">${semesters.map(s=>`
+                   <button class="tab ${s.id===state.activeSemesterId?'active':''}" data-action="pick-semester" data-id="${s.id}">${escapeHtml(semesterName(s))}</button>
+                 `).join("")}</div>`
+            )
           }
-          blob = await exportResponse.blob();
-          fileName += exportType === "text/html" ? ".html" : exportType === "application/pdf" ? ".pdf" : ".csv";
-        } else {
-          const downloadResponse = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
-            { headers: { Authorization: "Bearer " + accessToken } }
-          );
-          if (!downloadResponse.ok) {
-            const errorData = await downloadResponse.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || "Unable to download the file.");
-          }
-          blob = await downloadResponse.blob();
+          ${kid? `
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <select class="select" id="termSel" style="flex:0 0 140px">
+                <option value="Spring">Spring</option>
+                <option value="Fall">Fall</option>
+              </select>
+              <input class="input" id="yearSel" type="number" min="2015" max="2040" placeholder="Year" style="flex:0 0 120px">
+              <button class="btn" data-action="quick-add-semester">Add</button>
+              ${sem? `<button class="ghost" data-action="remove-semester">Remove selected</button>`:""}
+            </div>`:''}
+        </div>
+
+        <div class="card-h"><div><b>${sem? escapeHtml(semesterName(sem))+" — Classes":"Classes"}</b></div>
+          ${sem? `<button class="ghost" data-action="add-class">+ Class</button>`:''}
+        </div>
+        <div class="card-b">
+          ${!sem? `<div class="muted">Select a semester to see classes.</div>` :
+            (classes.length===0? `<div class="muted">No classes yet. Add the first class.</div>` :
+              `<div class="tabs">${classes.map(c=>`
+                <button class="tab ${c.id===state.activeClassId?'active':''}" data-action="pick-class" data-id="${c.id}">${escapeHtml(c.name||'Untitled')}</button>
+              `).join("")}</div>`
+          )}
+          ${sem? `
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <input class="input" placeholder="Add class (quick)" id="classQuick" style="flex:1 1 220px">
+              <button class="btn" data-action="quick-add-class">Add</button>
+              ${cls? `
+                <button class="ghost" data-action="rename-class">Rename class</button>
+                <button class="ghost" data-action="remove-class">Remove class</button>`:''}
+            </div>`:''}
+        </div>
+
+        <div class="card-h"><div><b>${cls? escapeHtml(cls.name)+" — Tests":"Tests"}</b></div>
+          ${cls? `<button class="ghost" data-action="add-test">+ Test</button>`:''}
+        </div>
+        <div class="card-b">
+          ${!cls? `<div class="muted">Select a class to see tests.</div>` :
+            (tests.length===0? `<div class="muted">No tests yet. Add the first test.</div>` :
+              `<div class="tabs">${tests.map(t=>`
+                <button class="tab ${t.id===state.activeTestId?'active':''}" data-action="pick-test" data-id="${t.id}">${escapeHtml(t.name||'Untitled test')}</button>
+              `).join("")}</div>`
+          )}
+          ${cls? `
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <input class="input" placeholder="Add test (quick)" id="testQuick" style="flex:1 1 220px">
+              <button class="btn" data-action="quick-add-test">Add</button>
+              ${tst? `
+                <button class="ghost" data-action="rename-test">Rename test</button>
+                <button class="ghost" data-action="remove-test">Remove test</button>`:''}
+            </div>`:''}
+        </div>
+
+        <div class="card-h"><div><b>${tst? escapeHtml(tst.name)+" — Details, Files, AI Outlines":"Details, Files, AI Outlines"}</b></div></div>
+        <div class="card-b">
+          ${!tst? `<div class="muted">Select a test to manage uploads, AI outlines, and the outline document.</div>` : `
+            <div class="grid grid-3">
+              <div>
+                <div class="hint" style="margin-bottom:6px">Due date</div>
+                <input class="input" type="date" id="dueInput" value="${escapeHtml(tst.dueDate||'')}">
+              </div>
+              <div style="grid-column: span 2">
+                <div class="hint" style="margin-bottom:6px">Notes</div>
+                <textarea class="area" id="notesInput" placeholder="Study chapters, required materials, reminders...">${escapeHtml(tst.notes||'')}</textarea>
+              </div>
+            </div>
+
+            <div style="margin-top:14px" class="grid">
+              <div>
+                <div class="hint" style="margin-bottom:6px">Upload files</div>
+                <input class="input" id="fileInput" type="file" multiple>
+              </div>
+              ${(tst.files&&tst.files.length)?`
+                <div class="files">
+                  ${tst.files.map(f=>`
+                    <div class="file">
+                      <div style="min-width:0">
+                        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(f.name)}</div>
+                        <div class="muted">${(f.size/1024).toFixed(1)} KB · ${escapeHtml(f.type||'file')}</div>
+                        ${(f.outlineHtml)?`<div class="hint">Outline saved</div>`:""}
+                      </div>
+                      <div class="right">
+                        <a class="ghost" href="${escapeAttr(f.url)}" target="_blank" rel="noreferrer">Open</a>
+                        <button class="ghost" data-action="ai-outline" data-id="${f.id}">AI Outline</button>
+                        ${(f.outlineHtml)?`<button class="ghost" data-action="edit-doc-outline" data-id="${f.id}">Edit Outline</button>`:""}
+                        <button class="ghost" data-action="quiz-from-doc" data-id="${f.id}">Quiz (doc)</button>
+                        <button class="ghost" data-action="remove-file" data-id="${f.id}">Remove</button>
+                      </div>
+                    </div>`).join("")}
+                </div>`:`<div class="muted">No files yet.</div>`}
+            </div>
+
+            <div style="margin-top:14px;border:1px solid var(--line);background:#fafafa;padding:12px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+              <div>
+                <div style="font-weight:700">Test Outline</div>
+                <div class="hint">${tst.testOutlineHtml? 'Saved' : 'Empty'}</div>
+              </div>
+              <div class="right">
+                <button class="ghost" data-action="open-test-outline">Open</button>
+                <button class="ghost" data-action="build-test-outline">Build from accepted doc outlines</button>
+                <button class="ghost" data-action="quiz-from-test">Quiz (test outline)</button>
+              </div>
+            </div>
+
+            <div style="margin-top:14px;border:1px solid var(--line);background:#fafafa;padding:12px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+              <div>
+                <div style="font-weight:700">Class Outline</div>
+                <div class="hint">${cls.classOutlineHtml? 'Saved' : 'Empty'}</div>
+              </div>
+              <div class="right">
+                <button class="ghost" data-action="open-class-outline">Open</button>
+                <button class="ghost" data-action="build-class-outline">Build from accepted doc outlines</button>
+                <button class="ghost" data-action="quiz-from-class">Quiz (class outline)</button>
+              </div>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+
+    // Wire details inputs
+    if(tst){
+      $("#dueInput").addEventListener("change", e=>{ tst.dueDate = e.target.value; save(); });
+      $("#notesInput").addEventListener("input", e=>{ tst.notes = e.target.value; save(); });
+      $("#fileInput").addEventListener("change", e=>{
+        const files = Array.from(e.target.files||[]).map(f=>({
+          id: uid(), name:f.name, size:f.size, type:f.type, url: URL.createObjectURL(f), addedAt:new Date().toISOString(), outlineHtml:"", acceptedToTest:false, acceptedToClass:false, _blob:f
+        }));
+        // Keep a transient _blob only during this session (not persisted)
+        tst.files = (tst.files||[]).concat(files);
+        save(); render();
+      });
+    }
+  }
+
+  // ----- Event delegation -----
+  document.addEventListener("click", async function(e){
+    const el = e.target.closest("[data-action]"); if(!el) return;
+    const action = el.getAttribute("data-action");
+    const kid = state.kids.find(k=>k.id===state.activeKidId);
+    const sem = kid?.semesters?.find(s=>s.id===state.activeSemesterId);
+    const cls = sem?.classes?.find(c=>c.id===state.activeClassId);
+    const tst = cls?.tests?.find(t=>t.id===state.activeTestId);
+
+    try{
+      if(action==="add-kid"){
+        const n = prompt("Add kid's name"); if(!n) return;
+        const id=uid(); state.kids.push({id,name:n,semesters:[]});
+        state.activeKidId=id; state.activeSemesterId=""; state.activeClassId=""; state.activeTestId="";
+      }
+      if(action==="quick-add-kid"){
+        const inp=$("#kidQuick"); const n=(inp.value||"").trim(); if(!n) return; inp.value="";
+        const id=uid(); state.kids.push({id,name:n,semesters:[]});
+        state.activeKidId=id; state.activeSemesterId=""; state.activeClassId=""; state.activeTestId="";
+      }
+      if(action==="pick-kid"){ state.activeKidId = el.getAttribute("data-id"); state.activeSemesterId=""; state.activeClassId=""; state.activeTestId=""; }
+      if(action==="rename-kid"){ const id=el.getAttribute("data-id"); const k=state.kids.find(x=>x.id===id); if(!k) return; const n=prompt("Rename kid", k.name); if(n!=null){ k.name=n; } }
+      if(action==="remove-kid"){
+        const id=el.getAttribute("data-id"); if(!confirm("Remove this kid and everything inside?")) return;
+        state.kids = state.kids.filter(x=>x.id!==id);
+        if(state.activeKidId===id){ state.activeKidId = state.kids[0]?.id||""; state.activeSemesterId=""; state.activeClassId=""; state.activeTestId=""; }
+      }
+
+      if(action==="add-semester"){ if(!kid) return;
+        const str = prompt("Enter semester (e.g., Spring 2025 or Fall 2026)"); if(!str) return;
+        const m = str.trim().match(/^(spring|fall)\s+(\d{4})$/i);
+        if(!m){ alert("Please type exactly: Spring 2025 or Fall 2026"); return; }
+        const term = m[1].toLowerCase()==="spring"?"Spring":"Fall";
+        const year = Number(m[2]);
+        if((kid.semesters||[]).some(s=>s.term===term && Number(s.year)===year)){
+          alert(term+" "+year+" already exists.");
+        }else{
+          const sid=uid(); (kid.semesters=kid.semesters||[]).push({id:sid,term,year,classes:[]});
+          state.activeSemesterId=sid; state.activeClassId=""; state.activeTestId="";
         }
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 0);
-        out.textContent = `Downloaded: ${fileName}`;
-      } catch (error) {
-        showError("Could not import file", error);
       }
-    }
+      if(action==="quick-add-semester"){ if(!kid) return;
+        const term = $("#termSel").value==="Spring"?"Spring":"Fall";
+        const yraw = $("#yearSel").value.trim();
+        const year = Number(yraw||new Date().getFullYear());
+        if(!year || year<2015 || year>2040){ alert("Enter a valid year between 2015 and 2040."); return; }
+        if((kid.semesters||[]).some(s=>s.term===term && Number(s.year)===year)){
+          alert(term+" "+year+" already exists.");
+        }else{
+          const sid=uid(); (kid.semesters=kid.semesters||[]).push({id:sid,term,year,classes:[]});
+          state.activeSemesterId=sid; state.activeClassId=""; state.activeTestId="";
+        }
+      }
+      if(action==="pick-semester"){ state.activeSemesterId = el.getAttribute("data-id"); state.activeClassId=""; state.activeTestId=""; }
+      if(action==="remove-semester"){ if(!sem) return; if(!confirm("Remove this semester and all classes/tests inside?")) return;
+        kid.semesters = kid.semesters.filter(s=>s.id!==sem.id);
+        if(state.activeSemesterId===sem.id){ state.activeSemesterId = kid.semesters[0]?.id||""; state.activeClassId=""; state.activeTestId=""; }
+      }
 
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+      if(action==="add-class"){ if(!sem) return; const n=prompt("New class name"); if(!n) return;
+        const cid=uid(); (sem.classes=sem.classes||[]).push({id:cid,name:n,tests:[],classOutlineHtml:""}); state.activeClassId=cid; state.activeTestId="";
+      }
+      if(action==="quick-add-class"){ if(!sem) return; const inp=$("#classQuick"); const n=(inp.value||"").trim(); if(!n) return; inp.value="";
+        const cid=uid(); (sem.classes=sem.classes||[]).push({id:cid,name:n,tests:[],classOutlineHtml:""}); state.activeClassId=cid; state.activeTestId="";
+      }
+      if(action==="pick-class"){ state.activeClassId = el.getAttribute("data-id"); state.activeTestId=""; }
+      if(action==="rename-class"){ if(!cls) return; const n=prompt("Rename class", cls.name); if(n!=null){ cls.name=n; } }
+      if(action==="remove-class"){ if(!cls) return; if(!confirm("Remove this class and its tests?")) return;
+        sem.classes = sem.classes.filter(c=>c.id!==cls.id);
+        if(state.activeClassId===cls.id){ state.activeClassId=sem.classes[0]?.id||""; state.activeTestId=""; }
+      }
+
+      if(action==="add-test"){ if(!cls) return; const n=prompt("Test name"); if(!n) return;
+        const tid=uid(); (cls.tests=cls.tests||[]).push({id:tid,name:n,files:[],notes:"",dueDate:"",docHtml:"",docUpdatedAt:"",testOutlineHtml:""}); state.activeTestId=tid;
+      }
+      if(action==="quick-add-test"){ if(!cls) return; const inp=$("#testQuick"); const n=(inp.value||"").trim(); if(!n) return; inp.value="";
+        const tid=uid(); (cls.tests=cls.tests||[]).push({id:tid,name:n,files:[],notes:"",dueDate:"",docHtml:"",docUpdatedAt:"",testOutlineHtml:""}); state.activeTestId=tid;
+      }
+      if(action==="pick-test"){ state.activeTestId = el.getAttribute("data-id"); }
+      if(action==="rename-test"){ if(!tst) return; const n=prompt("Rename test", tst.name); if(n!=null){ tst.name=n; } }
+      if(action==="remove-test"){ if(!tst) return; if(!confirm("Remove this test?")) return;
+        cls.tests = cls.tests.filter(t=>t.id!==tst.id);
+        if(state.activeTestId===tst.id){ state.activeTestId = cls.tests[0]?.id||""; }
+      }
+
+      if(action==="remove-file"){ if(!tst) return; const id=el.getAttribute("data-id"); tst.files = (tst.files||[]).filter(f=>f.id!==id); }
+
+      // AI Outline per document
+      if(action==="ai-outline"){ if(!tst) return;
+        const id=el.getAttribute("data-id"); const f = tst.files.find(x=>x.id===id); if(!f) return;
+        await aiOutlineFlow(kid, sem, cls, tst, f);
+      }
+      if(action==="edit-doc-outline"){ if(!tst) return;
+        const id=el.getAttribute("data-id"); const f = tst.files.find(x=>x.id===id); if(!f) return;
+        openDocEditor({ title: f.name+" — Outline", html: f.outlineHtml||`<h1>${escapeHtml(f.name)}</h1>`, onSave:(html)=>{ f.outlineHtml=html; save(); render(); } , onAcceptTest: ()=>{ appendToTestOutline(tst, f); }, onAcceptClass: ()=>{ appendToClassOutline(cls, f); } });
+      }
+
+      // Build/Open/Quiz outlines
+      if(action==="open-test-outline"){ if(!tst) return;
+        openDocEditor({ title: tst.name+" — Test Outline", html: tst.testOutlineHtml||`<h1>${escapeHtml(tst.name)} — Test Outline</h1>`, onSave:(html)=>{ tst.testOutlineHtml=html; save(); render(); } });
+      }
+      if(action==="build-test-outline"){ if(!tst) return;
+        const html = concatAcceptedDocs(tst.files, "test");
+        if(!html){ alert("No accepted doc outlines for this test yet."); }
+        else{ if(confirm("Replace current Test Outline with outline built from accepted document outlines?")){ tst.testOutlineHtml = html; save(); render(); alert("Test Outline updated."); } }
+      }
+      if(action==="quiz-from-test"){ if(!tst) return;
+        const html = tst.testOutlineHtml; if(!html){ alert("No Test Outline yet."); return; }
+        openQuiz("Quiz — Test Outline", buildQuizFromHtml(html));
+      }
+      if(action==="open-class-outline"){ if(!cls) return;
+        openDocEditor({ title: cls.name+" — Class Outline", html: cls.classOutlineHtml||`<h1>${escapeHtml(cls.name)} — Class Outline</h1>`, onSave:(html)=>{ cls.classOutlineHtml=html; save(); render(); } });
+      }
+      if(action==="build-class-outline"){ if(!cls) return;
+        const files = cls.tests.flatMap(t=>t.files||[]);
+        const html = concatAcceptedDocs(files, "class");
+        if(!html){ alert("No accepted doc outlines for this class yet."); }
+        else{ if(confirm("Replace current Class Outline with outline built from accepted document outlines?")){ cls.classOutlineHtml = html; save(); render(); alert("Class Outline updated."); } }
+      }
+      if(action==="quiz-from-class"){ if(!cls) return;
+        const html = cls.classOutlineHtml; if(!html){ alert("No Class Outline yet."); return; }
+        openQuiz("Quiz — Class Outline", buildQuizFromHtml(html));
+      }
+      if(action==="quiz-from-doc"){ if(!tst) return;
+        const id=el.getAttribute("data-id"); const f = tst.files.find(x=>x.id===id); if(!f) return;
+        if(!(f.outlineHtml||"").trim()){ alert("Generate or edit an outline for this document first."); return; }
+        openQuiz("Quiz — "+f.name, buildQuizFromHtml(f.outlineHtml));
+      }
+
+      save(); render();
+    }catch(err){ crash(err); }
+  });
+
+  // ---------- Settings ----------
+  $("#settingsBtn").addEventListener("click", ()=>{
+    const m = $("#settingsModal"); m.classList.add("open");
+    $("#apiKeyInput").value = state.settings?.apiKey||"";
+  });
+  $("#settingsCloseBtn").addEventListener("click", ()=>$("#settingsModal").classList.remove("open"));
+  $("#saveSettingsBtn").addEventListener("click", ()=>{
+    state.settings = state.settings || {};
+    state.settings.apiKey = $("#apiKeyInput").value.trim();
+    saveSettings(state.settings); save(); alert("Saved.");
+  });
+  $("#clearSettingsBtn").addEventListener("click", ()=>{
+    if(confirm("Clear saved settings?")){ state.settings={}; saveSettings(state.settings); save(); $("#apiKeyInput").value=""; }
+  });
+
+  // ---------- Modal editors ----------
+  function openDocEditor({title, html, onSave, onAcceptTest, onAcceptClass}){
+    $("#docTitle").textContent = title||"Document";
+    $("#docEditor").innerHTML = html||"<p>(empty)</p>";
+    $("#docModal").classList.add("open");
+    $("#saveDocBtn").onclick = function(){ try{ onSave && onSave($("#docEditor").innerHTML); alert("Saved."); }catch(e){ crash(e); } };
+    $("#acceptToTestBtn").onclick = function(){ try{ onAcceptTest && onAcceptTest(); }catch(e){ crash(e); } };
+    $("#acceptToClassBtn").onclick = function(){ try{ onAcceptClass && onAcceptClass(); }catch(e){ crash(e); } };
+    $("#exportDocBtn").onclick = function(){ exportDoc($("#docEditor").innerHTML, title||"Outline"); };
+    $("#closeDocBtn").onclick = function(){ $("#docModal").classList.remove("open"); };
+  }
+  function execCmd(cmd, val=null){ document.execCommand(cmd,false,val); }
+
+  // ---------- AI Outline flow ----------
+  async function aiOutlineFlow(kid, sem, cls, tst, file){
+    try{
+      // Try to get text from file (supports .txt/.md natively; PDF via PDF.js if available online)
+      const rawText = await extractTextFromFile(file);
+      if(!rawText || !rawText.trim()){
+        alert("Couldn't read text from this file. For best results, upload .txt/.md or enable PDF.js (online).");
+        return;
+      }
+      const useKey = (state.settings?.apiKey||"").trim().length>0;
+      let outlineHtml="";
+      if(useKey){
+        outlineHtml = await outlineViaOpenAI(rawText, file.name).catch(()=> "");
+      }
+      if(!outlineHtml){
+        outlineHtml = outlineHeuristic(rawText, file.name);
+      }
+      // Open editor with outline; allow save/accept
+      openDocEditor({
+        title: file.name+" — AI Outline (editable)",
+        html: outlineHtml,
+        onSave: (html)=>{ file.outlineHtml = html; },
+        onAcceptTest: ()=>{ if(!file.outlineHtml) file.outlineHtml = outlineHtml; appendToTestOutline(tst, file); file.acceptedToTest = true; save(); alert("Added to Test Outline."); },
+        onAcceptClass: ()=>{ if(!file.outlineHtml) file.outlineHtml = outlineHtml; appendToClassOutline(cls, file); file.acceptedToClass = true; save(); alert("Added to Class Outline."); }
+      });
+    }catch(e){ crash(e); }
+  }
+
+  function appendToTestOutline(tst, file){
+    const base = tst.testOutlineHtml||"";
+    const section = `<h2>— From: ${escapeHtml(file.name)} —</h2>\n${file.outlineHtml||"<p>(empty)</p>"}\n`;
+    tst.testOutlineHtml = base ? (base + "\n" + section) : section;
+  }
+  function appendToClassOutline(cls, file){
+    const base = cls.classOutlineHtml||"";
+    const section = `<h2>— From: ${escapeHtml(file.name)} —</h2>\n${file.outlineHtml||"<p>(empty)</p>"}\n`;
+    cls.classOutlineHtml = base ? (base + "\n" + section) : section;
+  }
+  function concatAcceptedDocs(files, kind){ // kind: "test" or "class"
+    const wanted = files.filter(f=> kind==="test" ? f.acceptedToTest : f.acceptedToClass);
+    if(wanted.length===0) return "";
+    return wanted.map(f=>`<h2>— From: ${escapeHtml(f.name)} —</h2>\n${f.outlineHtml||"<p>(empty)</p>"}`).join("\n");
+  }
+
+  // ---------- Extraction ----------
+  async function extractTextFromFile(file){
+    // prefer in-memory blob if present (newly uploaded), else fetch from objectURL and read as blob
+    let blob = file._blob;
+    if(!blob){
+      try{
+        const res = await fetch(file.url); blob = await res.blob();
+      }catch(e){}
     }
-  })();
-  </script>
+    if(!blob) return "";
+    if((blob.type||"").startsWith("text/")){ return await blob.text(); }
+    const name = (file.name||"").toLowerCase();
+    if(name.endsWith(".md")||name.endsWith(".csv")||name.endsWith(".log")){ return await blob.text(); }
+    if((blob.type||"")==="application/pdf" || name.endsWith(".pdf")){
+      try{ const t = await extractPdfText(blob); return t; }catch(e){ /* ignore */ }
+    }
+    // As a last resort, try reading as text; may be garbled
+    try{ return await blob.text(); }catch(e){ return ""; }
+  }
+  async function loadPdfJs(){
+    if(window.pdfjsLib) return true;
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.referrerpolicy = "no-referrer";
+    const w = document.createElement("script");
+    w.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    w.referrerpolicy = "no-referrer";
+    const p = new Promise((res,rej)=>{
+      let done=0;
+      function ok(){ done++; if(done===2) res(true); }
+      s.onload=ok; w.onload=ok; s.onerror=rej; w.onerror=rej;
+    });
+    document.head.appendChild(s); document.head.appendChild(w);
+    try{ await p; return true; }catch(e){ return false; }
+  }
+  async function extractPdfText(blob){
+    const ok = await loadPdfJs();
+    if(!ok) throw new Error("PDF.js failed to load.");
+    const buf = await blob.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({data:buf}).promise;
+    let out = "";
+    const clamp = Math.min(pdf.numPages, 30); // safety
+    for(let i=1;i<=clamp;i++){
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const line = tc.items.map(it=>it.str).join(" ");
+      out += line + "\n";
+    }
+    return out;
+  }
+
+  // ---------- Outline generation ----------
+  function outlineHeuristic(text, name){
+    const t = normalizeText(text);
+    const title = (name||"Document").replace(/\.[^.]+$/,"");
+    const lines = t.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    // Headings: strong candidates are lines with few words and Capitalized or numbered
+    const heads = lines.filter(s=>/^[A-Z][A-Za-z0-9 .\-()]{2,80}$/.test(s) || /^\d+(\.|[\)])\s+\S/.test(s)).slice(0,12);
+    const bullets = lines.filter(s=>s.length>30).slice(0,40);
+    const keypoints = bullets.slice(0,10);
+    const sections = heads.slice(0,6);
+    function listify(arr){ return arr.map(x=>"<li>"+escapeHtml(x)+"</li>").join(""); }
+    return `
+<h1>${escapeHtml(title)}</h1>
+<h2>Overview</h2>
+<p>${escapeHtml(bullets[0]||"This is an auto-generated outline based on the document content.")}</p>
+<h2>Key Points</h2>
+<ul>${listify(keypoints)}</ul>
+<h2>Sections</h2>
+<ol>${listify(sections)}</ol>
+<h2>Study Prompts</h2>
+<ul>
+ <li>Summarize each section in 2–3 sentences.</li>
+ <li>List terms that need definitions.</li>
+ <li>Create 3 practice problems per section.</li>
+</ul>`;
+  }
+  function normalizeText(s){
+    return String(s||"").replace(/\r/g,"").replace(/[ \t]+/g," ").replace(/\n{3,}/g,"\n\n");
+  }
+
+  async function outlineViaOpenAI(text, name){
+    const key = (state.settings?.apiKey||"").trim();
+    if(!key) throw new Error("No API key.");
+    const prompt = `Make a clean outline (HTML with <h1>, <h2>, <ul><li>) from this document. Title: ${name}. Keep it concise and well-structured.`;
+    const body = {
+      model: "gpt-4o-mini",
+      messages: [
+        {role:"system", content:"You are an assistant that converts raw text into clean study outlines. Output valid HTML only."},
+        {role:"user", content: prompt+"\n\nTEXT:\n"+text.slice(0,20000)}
+      ],
+      temperature: 0.2
+    };
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+key },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error("OpenAI HTTP "+res.status);
+    const j = await res.json();
+    const html = (j.choices?.[0]?.message?.content||"").trim();
+    return html;
+  }
+
+  // ---------- Export ----------
+  function exportDoc(html,name){
+    const shell = `<html><head><meta charset="utf-8"></head><body><div style="width:6.5in;margin:0 auto;font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.45;">${html||"<p>(empty)</p>"}</div></body></html>`;
+    const blob = new Blob([shell], {type:"application/msword"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (name||"Outline").replace(/[\\/:*?"<>|]+/g," ") + ".doc";
+    document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+
+  // ---------- Quiz ----------
+  function buildQuizFromHtml(html){
+    // Extract list items as "facts"
+    const tmp = document.createElement("div"); tmp.innerHTML = html||"";
+    const items = Array.from(tmp.querySelectorAll("li")).map(li=>li.textContent.trim()).filter(s=>s.length>0);
+    const facts = unique(items).filter(s=>s.length>20);
+    const qs = facts.slice(0,20).map(fact=>makeFillBlank(fact)).filter(Boolean);
+    return { index:0, score:0, questions:qs };
+  }
+  function unique(arr){ return Array.from(new Set(arr)); }
+  function pickBlankWord(s){
+    const words = s.split(/\s+/).filter(w=>w.length>=5 && /^[A-Za-z][A-Za-z\-’']+$/.test(w));
+    if(words.length===0) return null;
+    return words[Math.floor(Math.random()*words.length)];
+  }
+  function makeFillBlank(sentence){
+    const w = pickBlankWord(sentence);
+    if(!w) return null;
+    const blanked = sentence.replace(w, "____");
+    return { type:"blank", prompt: blanked, answer: w };
+  }
+
+  function openQuiz(title, qstate){
+    if(!qstate || qstate.questions.length===0){ alert("Not enough outline content to generate a quiz. Add some bullet points first."); return; }
+    const modal = $("#quizModal"); modal.classList.add("open");
+    $("#quizTitle").textContent = title||"Quiz";
+    function renderQ(){
+      const i = qstate.index; const q = qstate.questions[i];
+      $("#quizBody").innerHTML = `
+        <div class="quiz-q">
+          <div class="hint" style="margin-bottom:6px">Question ${i+1} of ${qstate.questions.length}</div>
+          <div style="font-size:18px;line-height:1.4">${escapeHtml(q.prompt)}</div>
+          <div class="sep"></div>
+          <input class="quiz-input" id="quizAns" placeholder="Type the missing word">
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn" id="checkBtn">Check</button>
+            <button class="ghost" id="showBtn">Show Answer</button>
+          </div>
+          <div id="feedback" class="hint" style="margin-top:8px"></div>
+        </div>
+      `;
+      $("#quizProgress").textContent = (i+1)+"/"+qstate.questions.length;
+      $("#quizScore").textContent = "Score: "+qstate.score;
+      $("#checkBtn").onclick = function(){
+        const a = ($("#quizAns").value||"").trim().toLowerCase();
+        const ok = a === q.answer.toLowerCase();
+        $("#feedback").textContent = ok ? "✅ Correct!" : "❌ Incorrect. Try again or show the answer.";
+        if(ok){ qstate.score++; $("#quizScore").textContent = "Score: "+qstate.score; }
+      };
+      $("#showBtn").onclick = function(){
+        $("#feedback").textContent = "Answer: "+q.answer;
+      };
+    }
+    renderQ();
+    $("#quizPrevBtn").onclick = function(){ if(qstate.index>0){ qstate.index--; renderQ(); } };
+    $("#quizNextBtn").onclick = function(){ if(qstate.index<qstate.questions.length-1){ qstate.index++; renderQ(); } };
+    $("#quizCloseBtn").onclick = function(){ modal.classList.remove("open"); };
+  }
+
+  // ---------- Helpers & Errors ----------
+  $("#resetBtn").addEventListener("click", function(){
+    if(confirm("Reset all saved data?")) resetAll();
+  });
+  function resetAll(){
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    location.reload();
+  }
+  function crash(err){
+    const box = $("#errBox");
+    $("#errText").textContent = String(err && (err.stack||err.message||err));
+    box.classList.add("show");
+  }
+  window.addEventListener("error", function(e){ crash(e.error||e.message); });
+  function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
+
+  // ---------- Settings init ----------
+  $("#settingsModal").addEventListener("click", function(e){
+    if(e.target===this){ this.classList.remove("open"); }
+  });
+  $("#docModal").addEventListener("click", function(e){
+    if(e.target===this){ this.classList.remove("open"); }
+  });
+  $("#quizModal").addEventListener("click", function(e){
+    if(e.target===this){ this.classList.remove("open"); }
+  });
+
+  // First paint
+  render();
+})();
+</script>
 </body>
 </html>
