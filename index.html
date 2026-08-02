@@ -62,22 +62,76 @@
   .quiz-input{width:100%;border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;font-size:15px}
   .pill{display:inline-block;padding:.2rem .6rem;border:1px solid var(--line);border-radius:9999px;background:#fff;font-size:12px;margin-right:6px}
   .sep{height:1px;background:var(--line);margin:10px 0}
+  /* Supabase account/login */
+  .auth-gate{position:fixed;inset:0;z-index:100;background:linear-gradient(135deg,#eef2ff,#f8fafc);display:flex;align-items:center;justify-content:center;padding:18px}
+  .auth-card{width:min(100%,520px);background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(15,23,42,.18);padding:22px}
+  .auth-title{font-size:24px;font-weight:800;margin:0 0 6px}
+  .auth-sub{font-size:13px;color:var(--muted);margin-bottom:16px}
+  .auth-grid{display:grid;gap:10px}
+  .auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .auth-message{min-height:20px;margin-top:10px;font-size:13px;color:#334155}
+  .auth-message.error{color:#b91c1c}
+  .auth-message.success{color:#166534}
+  .hidden{display:none!important}
+  .cloud-ok{color:#166534}
+  .cloud-warn{color:#92400e}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="head">
     <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
       <h1>📚 School Assignment Tracker — LITE + AI Outlines & Quizzes</h1>
-      <div class="right">
-        <span class="hint">Local data</span>
+      <div class="right" style="flex-wrap:wrap;justify-content:flex-end">
+        <span class="hint" id="cloudStatus">Supabase: checking…</span>
+        <span class="hint" id="userEmail"></span>
+        <button class="ghost" id="accountBtn">Account</button>
+        <button class="ghost hidden" id="signOutBtn">Sign out</button>
         <button class="ghost" id="settingsBtn">Settings</button>
-        <button class="ghost" id="resetBtn">Reset App</button>
+        <button class="ghost" id="resetBtn">Reset Local App</button>
       </div>
     </div>
   </div>
 
   <div class="wrap">
     <div class="row" id="app"></div>
+  </div>
+
+  <!-- Supabase setup + account login -->
+  <div class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <div id="supabaseSetupPanel">
+        <h2 class="auth-title">Connect this tracker to Supabase</h2>
+        <div class="auth-sub">Paste the Project URL and the publishable/anon key from your Supabase project. Do not paste a service-role or secret key.</div>
+        <div class="auth-grid">
+          <label class="hint">Supabase Project URL</label>
+          <input class="input" id="supabaseUrlInput" placeholder="https://your-project.supabase.co">
+          <label class="hint">Publishable key / anon key</label>
+          <textarea class="area" id="supabaseKeyInput" style="min-height:90px" placeholder="sb_publishable_... or the anon public key"></textarea>
+          <div class="auth-actions">
+            <button class="btn accent" id="saveSupabaseConfigBtn">Save connection</button>
+          </div>
+          <div class="auth-message" id="setupMessage"></div>
+        </div>
+      </div>
+
+      <div id="authPanel" class="hidden">
+        <h2 class="auth-title">School Assignment Tracker</h2>
+        <div class="auth-sub">Create an account or sign in. Your tracker data can then sync to your Supabase account.</div>
+        <div class="auth-grid">
+          <label class="hint">Email</label>
+          <input class="input" id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+          <label class="hint">Password</label>
+          <input class="input" id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+          <div class="auth-actions">
+            <button class="btn accent" id="signInBtn">Sign in</button>
+            <button class="ghost" id="signUpBtn">Create account</button>
+          </div>
+          <button class="ghost" id="changeSupabaseBtn" style="justify-self:start">Change Supabase connection</button>
+          <div class="auth-message" id="authMessage"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Document Modal -->
@@ -180,17 +234,23 @@
 <script>
 (function(){
   const STORAGE_KEY = "assignLite_v3_ai_semesters";
+  const SUPABASE_CONFIG_KEY = "assignmentTracker_supabase_config_v1";
   const $ = (sel,root=document)=>root.querySelector(sel);
   const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
   const uid = ()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
   const safe = (s)=>String(s||"");
   const SETTINGS_KEY = "assignLite_settings_v1";
+  let sb = null;
+  let currentUser = null;
+  let cloudReady = false;
+  let cloudSaveTimer = null;
+  let authSubscription = null;
 
   function termLabel(term){ return term==="Spring"?"Spring":"Fall"; }
   function semesterName(s){ return termLabel(s.term)+" "+s.year; }
 
   // ---- Load data ----
-  const state = load();
+  let state = load();
   function load(){
     try{
       let raw = localStorage.getItem(STORAGE_KEY);
@@ -206,8 +266,44 @@
   function loadSettings(){
     try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"); }catch(e){ return {}; }
   }
-  function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+  function save(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    scheduleCloudSave();
+  }
   function saveSettings(s){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }catch(e){} }
+
+  function cleanStateForCloud(){
+    const clone = JSON.parse(JSON.stringify(state, (key, value)=>{
+      if(key==="_blob" || key==="settings") return undefined;
+      if(key==="url" && typeof value==="string" && value.startsWith("blob:")) return "";
+      return value;
+    }));
+    delete clone.settings;
+    return clone;
+  }
+
+  function scheduleCloudSave(){
+    if(!sb || !currentUser || !cloudReady) return;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(saveCloudNow, 700);
+  }
+
+  async function saveCloudNow(){
+    if(!sb || !currentUser || !cloudReady) return;
+    setCloudStatus("Saving…", "cloud-warn");
+    const payload = {
+      user_id: currentUser.id,
+      data: cleanStateForCloud(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from("tracker_data").upsert(payload, { onConflict:"user_id" });
+    if(error){
+      setCloudStatus("Signed in • local only (database setup needed)", "cloud-warn");
+      console.error("Cloud save failed", error);
+      return;
+    }
+    setCloudStatus("Saved to Supabase", "cloud-ok");
+  }
 
   function sanitize(d){
     d.kids = Array.isArray(d.kids)?d.kids:[];
@@ -255,6 +351,141 @@
     if(!cls?.tests.find(t=>t.id===d.activeTestId)) d.activeTestId = cls?.tests?.[0]?.id||"";
     d.settings = d.settings || loadSettings();
     return d;
+  }
+
+
+  // ---------- SUPABASE AUTH + CLOUD DATA ----------
+  function getSupabaseConfig(){
+    try{ return JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY)||"{}"); }
+    catch(e){ return {}; }
+  }
+  function setSupabaseConfig(config){
+    localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(config));
+  }
+  function setCloudStatus(message, className=""){
+    const el = $("#cloudStatus");
+    if(!el) return;
+    el.textContent = message;
+    el.className = "hint " + className;
+  }
+  function showSetup(message=""){
+    $("#authGate").classList.remove("hidden");
+    $("#supabaseSetupPanel").classList.remove("hidden");
+    $("#authPanel").classList.add("hidden");
+    $("#setupMessage").textContent = message;
+    const config = getSupabaseConfig();
+    $("#supabaseUrlInput").value = config.url||"";
+    $("#supabaseKeyInput").value = config.key||"";
+  }
+  function showAuth(message="", kind=""){
+    $("#authGate").classList.remove("hidden");
+    $("#supabaseSetupPanel").classList.add("hidden");
+    $("#authPanel").classList.remove("hidden");
+    const msg = $("#authMessage");
+    msg.textContent = message;
+    msg.className = "auth-message " + kind;
+  }
+  function hideAuthGate(){
+    $("#authGate").classList.add("hidden");
+  }
+  function authRedirectUrl(){
+    return window.location.origin + window.location.pathname;
+  }
+  async function initSupabase(){
+    const config = getSupabaseConfig();
+    if(!config.url || !config.key){
+      setCloudStatus("Supabase not configured", "cloud-warn");
+      showSetup();
+      return;
+    }
+    if(!window.supabase || !window.supabase.createClient){
+      showSetup("The Supabase library did not load. Check your internet connection and refresh.");
+      return;
+    }
+    try{
+      sb = window.supabase.createClient(config.url.trim(), config.key.trim(), {
+        auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+      });
+      if(authSubscription){ try{ authSubscription.unsubscribe(); }catch(e){} }
+      const listener = sb.auth.onAuthStateChange((event, session)=>{
+        setTimeout(()=>handleSession(session, event), 0);
+      });
+      authSubscription = listener.data?.subscription || null;
+      const { data, error } = await sb.auth.getSession();
+      if(error) throw error;
+      await handleSession(data.session, "INITIAL_SESSION");
+    }catch(e){
+      console.error(e);
+      setCloudStatus("Supabase connection failed", "cloud-warn");
+      showSetup("Could not connect. Recheck the Project URL and publishable/anon key.");
+    }
+  }
+  async function handleSession(session, event){
+    currentUser = session?.user || null;
+    if(!currentUser){
+      cloudReady = false;
+      $("#userEmail").textContent = "";
+      $("#signOutBtn").classList.add("hidden");
+      $("#accountBtn").classList.remove("hidden");
+      setCloudStatus("Signed out", "cloud-warn");
+      showAuth();
+      return;
+    }
+    $("#userEmail").textContent = currentUser.email || "Signed in";
+    $("#signOutBtn").classList.remove("hidden");
+    $("#accountBtn").classList.add("hidden");
+    hideAuthGate();
+    setCloudStatus("Loading Supabase data…", "cloud-warn");
+    await loadCloudState();
+  }
+  async function loadCloudState(){
+    cloudReady = false;
+    const { data, error } = await sb.from("tracker_data")
+      .select("data, updated_at")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+    if(error){
+      console.error("Cloud load failed", error);
+      setCloudStatus("Signed in • local only (run SQL setup)", "cloud-warn");
+      cloudReady = false;
+      render();
+      return;
+    }
+    if(data?.data){
+      state = sanitize({ ...data.data, settings:loadSettings() });
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    }else{
+      // First login: keep any local work and create the user's cloud row.
+      state.settings = loadSettings();
+    }
+    cloudReady = true;
+    render();
+    await saveCloudNow();
+  }
+  async function signIn(){
+    const email = $("#authEmail").value.trim();
+    const password = $("#authPassword").value;
+    if(!email || !password){ showAuth("Enter both email and password.", "error"); return; }
+    showAuth("Signing in…");
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) showAuth(error.message, "error");
+  }
+  async function signUp(){
+    const email = $("#authEmail").value.trim();
+    const password = $("#authPassword").value;
+    if(!email || password.length<6){ showAuth("Enter an email and a password of at least 6 characters.", "error"); return; }
+    showAuth("Creating account…");
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options:{ emailRedirectTo:authRedirectUrl() }
+    });
+    if(error){ showAuth(error.message, "error"); return; }
+    if(data.session){
+      showAuth("Account created and signed in.", "success");
+    }else{
+      showAuth("Account created. Check your email and click the confirmation link, then return here to sign in.", "success");
+    }
   }
 
   // ---------- UI RENDER ----------
@@ -601,7 +832,7 @@
     $("#exportDocBtn").onclick = function(){ exportDoc($("#docEditor").innerHTML, title||"Outline"); };
     $("#closeDocBtn").onclick = function(){ $("#docModal").classList.remove("open"); };
   }
-  function execCmd(cmd, val=null){ document.execCommand(cmd,false,val); }
+  window.execCmd = function(cmd, val=null){ document.execCommand(cmd,false,val); };
 
   // ---------- AI Outline flow ----------
   async function aiOutlineFlow(kid, sem, cls, tst, file){
@@ -837,6 +1068,41 @@
   function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
 
+
+  // ---------- Account controls ----------
+  $("#saveSupabaseConfigBtn").addEventListener("click", async ()=>{
+    const url = $("#supabaseUrlInput").value.trim().replace(/\/$/, "");
+    const key = $("#supabaseKeyInput").value.trim();
+    if(!/^https:\/\/[^/]+\.supabase\.co$/i.test(url)){
+      $("#setupMessage").textContent = "Enter the full Project URL, such as https://abcxyz.supabase.co";
+      $("#setupMessage").className = "auth-message error";
+      return;
+    }
+    if(!key){
+      $("#setupMessage").textContent = "Paste the publishable key or anon public key.";
+      $("#setupMessage").className = "auth-message error";
+      return;
+    }
+    setSupabaseConfig({url, key});
+    $("#setupMessage").textContent = "Connection saved.";
+    $("#setupMessage").className = "auth-message success";
+    await initSupabase();
+  });
+  $("#signInBtn").addEventListener("click", signIn);
+  $("#signUpBtn").addEventListener("click", signUp);
+  $("#authPassword").addEventListener("keydown", e=>{ if(e.key==="Enter") signIn(); });
+  $("#changeSupabaseBtn").addEventListener("click", ()=>showSetup());
+  $("#accountBtn").addEventListener("click", ()=>showAuth());
+  $("#signOutBtn").addEventListener("click", async ()=>{
+    if(sb) await sb.auth.signOut();
+    currentUser = null;
+    cloudReady = false;
+    state = sanitize({kids:[], settings:loadSettings()});
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    render();
+    showAuth("Signed out.", "success");
+  });
+
   // ---------- Settings init ----------
   $("#settingsModal").addEventListener("click", function(e){
     if(e.target===this){ this.classList.remove("open"); }
@@ -850,6 +1116,7 @@
 
   // First paint
   render();
+  initSupabase();
 })();
 </script>
 </body>
