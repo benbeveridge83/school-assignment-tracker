@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Classroom Import — Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 20px;
+      color: #111827;
+    }
+    button,
+    select {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+    }
+    button:not(:disabled) {
+      cursor: pointer;
+    }
+    button:disabled,
+    select:disabled {
+      opacity: 0.5;
+    }
+    #out {
+      margin-top: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 120px;
+    }
+    .item {
+      padding: 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin: 6px 0;
+    }
+    .notice {
+      padding: 10px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+    }
+  </style>
+</head>
+<body>
+  <h1>Classroom Import — Test</h1>
+
+  <div class="notice">
+    Before using this page, replace <strong>PASTE_YOUR_CLIENT_ID</strong> in the code with your Google OAuth Client ID. Open this page through a local web server such as <strong>http://localhost:8000/classroom-test.html</strong>, not by double-clicking it as a file.
+  </div>
+
+  <button id="connect">1) Connect Google</button>
+  <span id="who" style="color:#555"></span>
+  <br><br>
+
+  <button id="listCourses" disabled>2) List Courses</button>
+  <select id="course" disabled></select>
+  <button id="listMaterials" disabled>3) List Materials</button>
+
+  <div id="out"></div>
+
+  <script>
+  (function(){
+    const CLIENT_ID = "PASTE_YOUR_CLIENT_ID";
+    const SCOPES = [
+      "https://www.googleapis.com/auth/classroom.courses.readonly",
+      "https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly",
+      "https://www.googleapis.com/auth/drive.readonly"
+    ].join(" ");
+
+    let accessToken = null;
+    let tokenClient = null;
+    const $ = s => document.querySelector(s);
+    const out = $("#out");
+
+    function showError(prefix, error) {
+      const detail = error && error.message ? error.message : String(error || "Unknown error");
+      out.textContent = prefix + ": " + detail;
+      console.error(prefix, error);
+    }
+
+    $("#connect").onclick = () => {
+      if (CLIENT_ID === "PASTE_YOUR_CLIENT_ID") {
+        out.textContent = "Open this HTML file in a text editor and replace PASTE_YOUR_CLIENT_ID with the Client ID from Google Cloud.";
+        return;
+      }
+      if (!window.google || !google.accounts || !google.accounts.oauth2) {
+        out.textContent = "Google's sign-in library has not loaded. Check your internet connection, then reload this page.";
+        return;
+      }
+
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        ux_mode: "popup",
+        callback: (resp) => {
+          if (resp.error) {
+            showError("Google sign-in failed", resp);
+            return;
+          }
+          accessToken = resp.access_token;
+          $("#who").textContent = "Connected.";
+          $("#listCourses").disabled = false;
+          out.textContent = "Connected to Google. Click “List Courses.”";
+        }
+      });
+      tokenClient.requestAccessToken();
+    };
+
+    $("#listCourses").onclick = async () => {
+      try {
+        out.textContent = "Loading courses…";
+        const response = await fetch(
+          "https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE",
+          { headers: { Authorization: "Bearer " + accessToken } }
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || "Unable to list courses.");
+        if (!data.courses?.length) {
+          out.textContent = "No active courses were found for this Google account.";
+          return;
+        }
+        $("#course").innerHTML = data.courses
+          .map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`)
+          .join("");
+        $("#course").disabled = false;
+        $("#listMaterials").disabled = false;
+        out.textContent = "Pick a course, then click “List Materials.”";
+      } catch (error) {
+        showError("Could not load courses", error);
+      }
+    };
+
+    $("#listMaterials").onclick = async () => {
+      try {
+        const id = $("#course").value;
+        if (!id) return;
+        out.textContent = "Loading materials…";
+        const response = await fetch(
+          `https://classroom.googleapis.com/v1/courses/${encodeURIComponent(id)}/courseWorkMaterials`,
+          { headers: { Authorization: "Bearer " + accessToken } }
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || "Unable to list materials.");
+
+        const items = [];
+        for (const materialGroup of (data.courseWorkMaterial || [])) {
+          for (const material of (materialGroup.materials || [])) {
+            const driveFile = material.driveFile && material.driveFile.driveFile;
+            if (driveFile?.id) {
+              items.push({ id: driveFile.id, name: driveFile.title || driveFile.id });
+            }
+          }
+        }
+
+        if (!items.length) {
+          out.textContent = "No Google Drive attachments were found in this course's Materials section.";
+          return;
+        }
+
+        out.innerHTML = items.map(item => `
+          <div class="item">
+            <b>${escapeHtml(item.name)}</b>
+            <button data-id="${escapeHtml(item.id)}" class="downloadButton">Import (download)</button>
+          </div>
+        `).join("");
+
+        document.querySelectorAll(".downloadButton").forEach(button => {
+          button.onclick = () => importDriveFile(button.dataset.id);
+        });
+      } catch (error) {
+        showError("Could not load materials", error);
+      }
+    };
+
+    async function importDriveFile(fileId) {
+      try {
+        out.textContent = "Fetching file…";
+        const metaResponse = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType`,
+          { headers: { Authorization: "Bearer " + accessToken } }
+        );
+        const meta = await metaResponse.json();
+        if (!metaResponse.ok) throw new Error(meta.error?.message || "Unable to read file information.");
+
+        let blob;
+        let fileName = meta.name || "file";
+
+        if ((meta.mimeType || "").startsWith("application/vnd.google-apps")) {
+          const exportMap = {
+            "application/vnd.google-apps.document": "text/html",
+            "application/vnd.google-apps.presentation": "application/pdf",
+            "application/vnd.google-apps.spreadsheet": "text/csv"
+          };
+          const exportType = exportMap[meta.mimeType] || "application/pdf";
+          const exportResponse = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(exportType)}`,
+            { headers: { Authorization: "Bearer " + accessToken } }
+          );
+          if (!exportResponse.ok) {
+            const errorData = await exportResponse.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || "Unable to export the Google file.");
+          }
+          blob = await exportResponse.blob();
+          fileName += exportType === "text/html" ? ".html" : exportType === "application/pdf" ? ".pdf" : ".csv";
+        } else {
+          const downloadResponse = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+            { headers: { Authorization: "Bearer " + accessToken } }
+          );
+          if (!downloadResponse.ok) {
+            const errorData = await downloadResponse.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || "Unable to download the file.");
+          }
+          blob = await downloadResponse.blob();
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        out.textContent = `Downloaded: ${fileName}`;
+      } catch (error) {
+        showError("Could not import file", error);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  })();
+  </script>
+</body>
+</html>
