@@ -235,6 +235,12 @@
 (function(){
   const STORAGE_KEY = "assignLite_v3_ai_semesters";
   const SUPABASE_CONFIG_KEY = "assignmentTracker_supabase_config_v1";
+
+  // SHARED SUPABASE CONNECTION
+  // Replace the two placeholder values below before uploading this file to GitHub.
+  // The publishable/anon key is intended for browser use. Never use a secret or service-role key here.
+  const EMBEDDED_SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
+  const EMBEDDED_SUPABASE_KEY = "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE";
   const $ = (sel,root=document)=>root.querySelector(sel);
   const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
   const uid = ()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
@@ -355,7 +361,22 @@
 
 
   // ---------- SUPABASE AUTH + CLOUD DATA ----------
+  function hasEmbeddedSupabaseConfig(){
+    const url = String(EMBEDDED_SUPABASE_URL || "").trim().replace(/\/$/, "");
+    const key = String(EMBEDDED_SUPABASE_KEY || "").trim();
+    return /^https:\/\/[^/]+\.supabase\.co$/i.test(url)
+      && key
+      && !key.includes("PASTE_YOUR_");
+  }
+
   function getSupabaseConfig(){
+    if(hasEmbeddedSupabaseConfig()){
+      return {
+        url: String(EMBEDDED_SUPABASE_URL).trim().replace(/\/$/, ""),
+        key: String(EMBEDDED_SUPABASE_KEY).trim(),
+        embedded: true
+      };
+    }
     try{ return JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY)||"{}"); }
     catch(e){ return {}; }
   }
@@ -369,11 +390,15 @@
     el.className = "hint " + className;
   }
   function showSetup(message=""){
+    const config = getSupabaseConfig();
+    if(config.embedded){
+      showAuth(message || "Supabase is already configured for this website.");
+      return;
+    }
     $("#authGate").classList.remove("hidden");
     $("#supabaseSetupPanel").classList.remove("hidden");
     $("#authPanel").classList.add("hidden");
     $("#setupMessage").textContent = message;
-    const config = getSupabaseConfig();
     $("#supabaseUrlInput").value = config.url||"";
     $("#supabaseKeyInput").value = config.key||"";
   }
@@ -381,6 +406,8 @@
     $("#authGate").classList.remove("hidden");
     $("#supabaseSetupPanel").classList.add("hidden");
     $("#authPanel").classList.remove("hidden");
+    const config = getSupabaseConfig();
+    $("#changeSupabaseBtn").classList.toggle("hidden", !!config.embedded);
     const msg = $("#authMessage");
     msg.textContent = message;
     msg.className = "auth-message " + kind;
