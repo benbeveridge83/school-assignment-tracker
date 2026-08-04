@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AP Precalculus Algebra Fluency Lab</title>
+  <meta name="description" content="Interactive Algebra Fluency study lab for AP Precalculus">
+  <style>
+:root{--ink:#122033;--paper:#f5f2ea;--cream:#fffdf7;--coral:#e85d3f;--blue:#2e6f95;--gold:#d49b25;--green:#2f745e;--line:#d8d3c7}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:Arial,Helvetica,sans-serif}.topbar{height:68px;background:var(--cream);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 4vw;position:sticky;top:0;z-index:20}.brand{font-family:Georgia,serif;font-size:19px;font-weight:700;text-decoration:none;color:var(--ink);display:flex;align-items:center;gap:10px}.brand span{background:var(--coral);color:white;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;font-family:Arial;font-size:12px}.topbar nav{margin:auto;display:flex;gap:34px}.topbar nav a,.topbar .status{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#546172;text-decoration:none}.status i{display:inline-block;width:7px;height:7px;background:#55a16c;border-radius:50%;margin-right:7px}.hero{min-height:560px;padding:74px 8vw 66px;display:grid;grid-template-columns:1.2fr .8fr;gap:9vw;align-items:center;background:radial-gradient(circle at 70% 30%,#fff7df 0,transparent 38%)}.kicker{font-size:11px;font-weight:800;letter-spacing:.2em;color:var(--coral);text-transform:uppercase}.hero h1{font:700 clamp(48px,6vw,88px)/.96 Georgia,serif;margin:18px 0 24px;letter-spacing:-.04em}.hero h1 em{color:var(--coral);font-weight:400}.dek{font:19px/1.65 Georgia,serif;color:#4d5866;max-width:680px}.hero-actions{display:flex;align-items:center;gap:25px;margin-top:32px}.primary{padding:15px 20px;background:var(--ink);color:white;text-decoration:none;font-size:13px;font-weight:700}.hero-actions span{font-size:12px;color:#77808b}.formula-card{position:relative;overflow:hidden;background:var(--ink);color:white;padding:42px 44px;min-height:360px;display:flex;flex-direction:column;justify-content:center;box-shadow:18px 18px 0 #e3d7bf}.grid-lines{position:absolute;inset:0;opacity:.08;background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);background-size:28px 28px}.formula-card>*:not(.grid-lines){position:relative}.tiny{font-size:10px;letter-spacing:.22em;color:#9cb4c4}.equation{font:42px Georgia,serif;margin-top:28px}.equals{font:20px Georgia,serif;margin:9px 0;color:#9cb4c4}.equation.accent{color:#ff8a6c;margin-top:0}.formula-card p{margin-top:30px;color:#bbc5cd;font:15px/1.5 Georgia,serif}.module-strip{background:var(--coral);color:white;padding:16px 8vw;display:flex;gap:22px;align-items:center;font-size:10px;font-weight:bold;letter-spacing:.18em}.module-strip b{opacity:.5}.study{max-width:1440px;margin:auto;display:grid;grid-template-columns:280px 1fr;gap:0;padding:75px 5vw}.side{padding-right:34px;position:sticky;top:95px;height:max-content}.side label,.side-label{font-size:10px;letter-spacing:.18em;font-weight:800;color:#737c85}.side input{width:100%;border:1px solid var(--line);background:var(--cream);padding:13px;margin:9px 0 30px;outline:none}.side button{border:0;border-top:1px solid var(--line);background:transparent;width:100%;padding:16px 8px;text-align:left;color:#4b5866;cursor:pointer}.side button span{font-size:10px;color:#9a9fa3;margin-right:14px}.side button.active{color:var(--coral);font-weight:800;background:#fff9ef}.ap-link{display:block;background:var(--ink);color:white;padding:15px;margin-top:22px;text-decoration:none;font-size:12px}.lesson{background:var(--cream);border:1px solid var(--line)}.lesson-head{padding:48px 54px;color:white;display:flex;justify-content:space-between;align-items:end}.lesson-head.coral{background:#d9573d}.lesson-head.blue{background:#2e6f95}.lesson-head.gold{background:#b78319}.lesson-head.violet{background:#6f5b8a}.lesson-head.green{background:#2f745e}.lesson-head.navy{background:#24394e}.lesson-head p{margin:0 0 8px;font-size:11px;letter-spacing:.18em;text-transform:uppercase}.lesson-head h2{font:700 clamp(34px,4vw,55px) Georgia,serif;margin:0}.lesson-head>span{font:14px Georgia,serif;opacity:.7}.concept,.problem-types,.practice,.resources{padding:46px 54px;border-bottom:1px solid var(--line)}.concept h3{font:26px Georgia,serif;margin:0 0 15px}.concept>p{font:18px/1.7 Georgia,serif;color:#465364;max-width:880px}.memory{margin-top:25px;border-left:4px solid var(--coral);background:#f4efe4;padding:16px 20px;display:flex;gap:16px;font-size:14px}.memory b{text-transform:uppercase;font-size:10px;letter-spacing:.13em}.section-title{display:flex;align-items:baseline;gap:22px;margin-bottom:24px}.section-title span{font-size:10px;letter-spacing:.18em;font-weight:800}.section-title p{font:14px Georgia,serif;color:#69737e;margin:0}.type-grid{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}.type-card{padding:24px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:135px}.type-card>span{font-size:10px;color:var(--coral)}.type-card h4{font:19px Georgia,serif;margin:10px 0}.type-card p{font-size:13px;line-height:1.55;color:#5d6874;margin:0}.practice-row{display:grid;grid-template-columns:48px 1fr;border-top:1px solid var(--line);padding:25px 0}.problem-no{width:34px;height:34px;border-radius:50%;background:var(--ink);color:white;display:grid;place-items:center;font:15px Georgia,serif}.problem-main h4{font:19px Georgia,serif;margin:5px 0 12px}.problem-main details{font-size:12px;color:#6d7580}.problem-main summary{cursor:pointer;color:var(--blue)}.answer-line{display:flex;margin-top:16px}.answer-line input{flex:1;padding:12px;border:1px solid var(--line);font:15px Georgia,serif}.answer-line button,.library form button{border:0;background:var(--ink);color:white;padding:0 20px;font-weight:bold;cursor:pointer}.feedback{padding:10px 14px;margin-top:8px;font-size:13px}.feedback.correct{background:#e1f1e7;color:#206347}.feedback.review{background:#fff0db;color:#855916}.resource-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.resource-grid a{border:1px solid var(--line);padding:20px;color:var(--ink);text-decoration:none;min-height:155px;display:flex;flex-direction:column;transition:.2s}.resource-grid a:hover{transform:translateY(-3px);border-color:var(--coral)}.resource-grid span{font-size:9px;letter-spacing:.15em;color:var(--coral);text-transform:uppercase}.resource-grid h4{font:17px/1.35 Georgia,serif}.resource-grid b{font-size:11px;margin-top:auto}.next{padding:27px 54px;display:flex;justify-content:space-between;align-items:center;background:#f3eee4;font-size:11px;text-transform:uppercase;letter-spacing:.15em}.next button{border:0;background:none;color:var(--coral);font:18px Georgia,serif;text-transform:none;letter-spacing:0;cursor:pointer}.ap-check{background:var(--ink);color:white;padding:75px 10vw;display:grid;grid-template-columns:1fr 1fr;gap:10vw}.ap-check h2{font:45px/1.05 Georgia,serif;margin:15px 0}.ap-check p{color:#bac5cf;line-height:1.7}.ap-check ol{margin:0;padding:0;counter-reset:item;list-style:none}.ap-check li{counter-increment:item;border-bottom:1px solid #3b4a59;padding:17px 0;font:16px Georgia,serif}.ap-check li:before{content:"0" counter(item);color:#ff7a5c;font:10px Arial;margin-right:20px}.library{padding:75px 8vw;background:#eadfcb}.library-head{display:grid;grid-template-columns:1fr 1fr;gap:8vw}.library h2{font:45px Georgia,serif;margin:10px 0}.library-head>div>p:last-child{font:15px/1.6 Georgia,serif;color:#586473}.library form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.library input,.library select{border:1px solid #c9bda8;background:#fffaf0;padding:13px}.library form input:first-child{grid-column:1/-1}.library form button{grid-column:1/-1;padding:14px}.saved-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:35px}.saved{background:#fffaf0;padding:18px;position:relative}.saved span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#7d7468}.saved a{display:block;color:var(--ink);font:17px Georgia,serif;margin-top:9px;text-decoration:none}.saved button{position:absolute;right:8px;top:8px;border:0;background:none;font-size:20px;cursor:pointer}.empty{margin-top:30px;border:1px dashed #b9aa91;padding:25px;text-align:center;color:#7b7163;font:14px Georgia,serif}footer{background:#101b29;color:white;padding:30px 5vw;display:flex;align-items:center;justify-content:space-between}footer p,footer a{font-size:11px;color:#aeb8c2;text-decoration:none}@media(max-width:900px){.topbar nav,.status{display:none}.hero{grid-template-columns:1fr;padding-top:45px}.formula-card{min-height:300px}.study{grid-template-columns:1fr;padding:35px 16px}.side{position:static;padding:0 0 25px;display:flex;gap:7px;overflow:auto}.side label,.side input,.side-label,.ap-link{display:none}.side button{min-width:max-content;border:1px solid var(--line);padding:10px}.lesson-head,.concept,.problem-types,.practice,.resources{padding:30px 24px}.type-grid,.resource-grid,.ap-check,.library-head{grid-template-columns:1fr}.saved-grid{grid-template-columns:1fr 1fr}.module-strip{overflow:auto}.module-strip span{white-space:nowrap}.next{padding:22px 24px}.next span{display:none}}@media(max-width:540px){.hero-actions,.section-title,footer{align-items:flex-start;flex-direction:column}.hero{padding-left:20px;padding-right:20px}.formula-card{padding:30px}.hero h1{font-size:48px}.answer-line{display:grid}.answer-line button{padding:12px}.saved-grid{grid-template-columns:1fr}.ap-check{padding:55px 24px}.library{padding:55px 24px}.library form{grid-template-columns:1fr}.library form>*{grid-column:1!important}}
+</style>
+</head>
+<body>
+  <div id="ap-algebra-lab-root"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+const { useEffect, useMemo, useState } = React;
+
+const topics = [
+  {
+    id: "factoring", number: "01", title: "Factoring mastery", eyebrow: "Rewrite as a product", color: "coral",
+    concept: "Factoring reverses multiplication. First look for a greatest common factor, then recognize a trinomial or a special pattern. Keep factoring until every factor is irreducible over the integers.",
+    key: "GCF first · a²−b²=(a−b)(a+b) · a³±b³ patterns",
+    types: [
+      { name: "Greatest common factor", example: "15x³ − 25x² = 5x²(3x − 5)" },
+      { name: "Trinomials", example: "6x² + 11x + 3 = (3x + 1)(2x + 3)" },
+      { name: "Difference of squares", example: "9x² − 16 = (3x − 4)(3x + 4)" },
+      { name: "Sum / difference of cubes", example: "x³ + 27 = (x + 3)(x² − 3x + 9)" },
+      { name: "Mixed / repeated", example: "2x³ − 18x = 2x(x − 3)(x + 3)" },
+    ],
+    problems: [
+      { q: "Factor completely: 12x³ − 27x", answer: "3x(2x-3)(2x+3)", hint: "Take out 3x, then use difference of squares." },
+      { q: "Factor completely: 6x² + 13x + 6", answer: "(3x+2)(2x+3)", hint: "Find two numbers with product 36 and sum 13." },
+      { q: "Factor completely: 8x³ + 125", answer: "(2x+5)(4x²-10x+25)", hint: "This is a sum of cubes." },
+    ],
+    resources: [
+      { label: "Khan Academy: factoring", url: "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:quadratics-multiplying-factoring", kind: "Course" },
+      { label: "Math Antics — Factoring", url: "https://www.youtube.com/watch?v=0NvLtTwnUHs", kind: "Video" },
+      { label: "Paul’s Notes: factoring polynomials", url: "https://tutorial.math.lamar.edu/Classes/Alg/Factoring.aspx", kind: "Guide" },
+    ],
+  },
+  {
+    id: "rational", number: "02", title: "Rational expressions", eyebrow: "Factor before you cancel", color: "blue",
+    concept: "A rational expression is a quotient of polynomials. Restrictions come from the original denominator. You may cancel factors—not terms—and a canceled denominator factor creates a hole, not a restored domain value.",
+    key: "Restrictions first · factor · cancel factors · LCD for ±",
+    types: [
+      { name: "Simplify + restrictions", example: "(x²−9)/(x²+x−6) → (x−3)/(x−2), x≠−3,2" },
+      { name: "Multiply", example: "Factor every numerator and denominator before multiplying." },
+      { name: "Divide", example: "Multiply by the reciprocal; add restrictions from the divisor." },
+      { name: "Add / subtract", example: "Use the least common denominator, combine, then factor." },
+      { name: "Complex fractions", example: "Clear small denominators using their LCD." },
+    ],
+    problems: [
+      { q: "Simplify and state restrictions: (x²−16)/(x²−x−20)", answer: "(x-4)/(x-5), x≠-4,5", hint: "Factor: (x−4)(x+4) and (x−5)(x+4). Your simplified result should not still contain x+4." },
+      { q: "Compute: 2/x + 3/(x+1)", answer: "(5x+2)/(x(x+1))", hint: "The LCD is x(x+1)." },
+      { q: "For (x²−9)/(x²−x−6), identify the hole and vertical asymptote", answer: "hole (-2,-5/4); vertical asymptote x=3", hint: "Factor, cancel x+2, then substitute −2 into the simplified expression." },
+    ],
+    resources: [
+      { label: "OpenStax: rational expressions", url: "https://openstax.org/books/algebra-and-trigonometry-2e/pages/1-6-rational-expressions", kind: "Textbook" },
+      { label: "Khan Academy: rational expressions", url: "https://www.khanacademy.org/math/algebra2/x2ec2f6f830c9fb89:rational", kind: "Practice" },
+      { label: "Vertical asymptotes — worked video", url: "https://www.youtube.com/watch?v=DAwUVqq5vC0", kind: "Video" },
+    ],
+  },
+  {
+    id: "exponents", number: "03", title: "Exponent rules", eyebrow: "Track the base and operation", color: "gold",
+    concept: "Exponent rules are consequences of repeated multiplication. Combine exponents only when the bases and operations permit it. A negative exponent means reciprocal; a rational exponent means a root and a power.",
+    key: "Product: add · quotient: subtract · power: multiply · negative: reciprocal",
+    types: [
+      { name: "Product / quotient", example: "x³x⁵=x⁸; x⁷/x³=x⁴" },
+      { name: "Power of a power", example: "(x³)⁴=x¹²" },
+      { name: "Zero + negative", example: "x⁰=1; x⁻²=1/x²" },
+      { name: "Rational exponents", example: "x³ᐟ² = √(x³) = x√x (for x≥0)" },
+      { name: "Multi-rule simplification", example: "Apply grouping powers before multiplication or division." },
+    ],
+    problems: [
+      { q: "Simplify with positive exponents: (3x⁻²y³)²/(9y)", answer: "y⁵/x⁴", hint: "Square first: 9x⁻⁴y⁶, then divide." },
+      { q: "Evaluate: 64^(2/3)", answer: "16", hint: "Take the cube root first, then square." },
+      { q: "Rewrite using radicals: x^(5/2)", answer: "x²√x", hint: "5/2 = 2 + 1/2." },
+    ],
+    resources: [
+      { label: "Khan Academy: exponent properties", url: "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:exponents-radicals", kind: "Course" },
+      { label: "Negative & fractional exponents", url: "https://www.youtube.com/watch?v=Zt2fdy3zrZU", kind: "Video" },
+      { label: "Art of Problem Solving: negative exponents", url: "https://www.youtube.com/watch?v=LhjTj5DR7I8", kind: "Video" },
+    ],
+  },
+  {
+    id: "equations", number: "04", title: "Solving equations", eyebrow: "Solve, then check", color: "violet",
+    concept: "Solving preserves equivalence while isolating the variable. Choose a method that matches the equation’s structure. Clearing denominators or squaring can introduce invalid answers, so rational and radical equations must be checked in the original equation.",
+    key: "Classify · choose a method · solve · reject prohibited or extraneous values",
+    types: [
+      { name: "Linear", example: "Variables on one or both sides; fractions; identity or contradiction." },
+      { name: "Quadratic: factoring", example: "x²−7x+12=0 → x=3,4" },
+      { name: "Quadratic: other methods", example: "Square roots, completing square, formula, graph intersections." },
+      { name: "Rational equations", example: "List restrictions, multiply by LCD, solve, check." },
+      { name: "Radical equations", example: "Isolate radical, raise powers, solve, check for extraneous roots." },
+    ],
+    problems: [
+      { q: "Solve: 3(2x−1)=4x+7", answer: "5", hint: "Distribute, collect x terms, then constants." },
+      { q: "Solve: x²−6x−7=0", answer: "-1, 7", hint: "Find factors with product −7 and sum −6." },
+      { q: "Solve: √(x+5)=x−1", answer: "4", hint: "Require x≥1, square, solve the quadratic, then check both candidates." },
+    ],
+    resources: [
+      { label: "Paul’s Notes: solving equations", url: "https://tutorial.math.lamar.edu/Classes/Alg/SolveEquations.aspx", kind: "Guide" },
+      { label: "Khan Academy: quadratic equations", url: "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:quadratic-functions-equations", kind: "Practice" },
+      { label: "Quadratic equations by factoring", url: "https://www.youtube.com/watch?v=g6RnAY_VkMs", kind: "Video" },
+    ],
+  },
+  {
+    id: "inequalities", number: "05", title: "Inequalities & intervals", eyebrow: "Describe an entire solution set", color: "green",
+    concept: "An inequality usually has an interval of solutions. Critical numbers divide the number line into regions. For polynomial and rational inequalities, determine the sign on each region and include or exclude endpoints carefully.",
+    key: "Flip when × or ÷ by a negative · denominator zeros never included",
+    types: [
+      { name: "Linear / compound", example: "−2<3x+1≤10 → −1<x≤3 → (−1,3]" },
+      { name: "Polynomial", example: "Factor, mark zeros, use a sign chart." },
+      { name: "Rational", example: "Mark numerator zeros and denominator exclusions." },
+      { name: "Absolute value", example: "|u|<a gives AND; |u|>a gives OR (a>0)." },
+      { name: "Interval notation", example: "Use brackets for included finite endpoints; never for ±∞." },
+    ],
+    problems: [
+      { q: "Solve in interval notation: (x−2)(x+5)>0", answer: "(-∞,-5)∪(2,∞)", hint: "The product is positive when the factors have the same sign." },
+      { q: "Solve: (x−3)/(x+2)≤0", answer: "(-2,3]", hint: "−2 is excluded; 3 can be included." },
+      { q: "Solve: |2x+1|≥7", answer: "(-∞,-4]∪[3,∞)", hint: "Write 2x+1≤−7 OR 2x+1≥7." },
+    ],
+    resources: [
+      { label: "Paul’s Notes: inequalities", url: "https://tutorial.math.lamar.edu/Classes/Alg/SolveInequalities.aspx", kind: "Guide" },
+      { label: "Khan Academy: inequalities", url: "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:solve-equations-inequalities", kind: "Practice" },
+      { label: "Desmos graphing calculator", url: "https://www.desmos.com/calculator", kind: "Tool" },
+    ],
+  },
+  {
+    id: "ap-connection", number: "06", title: "AP connection lab", eyebrow: "Combine algebra with function analysis", color: "navy",
+    concept: "AP Precalculus questions combine representations and ask what algebra means for a function. Factoring reveals zeros, holes, and asymptotes; equivalent expressions support analysis; difference quotients model average rate of change.",
+    key: "Show work · preserve restrictions · interpret every algebraic result",
+    types: [
+      { name: "Equivalent forms", example: "Choose the form that best reveals zeros, end behavior, or discontinuities." },
+      { name: "Rational-function analysis", example: "Restrictions → holes → asymptotes → intercepts → signs." },
+      { name: "Difference quotients", example: "[f(x+h)−f(x)]/h; factor and cancel h, h≠0." },
+      { name: "FRQ justification", example: "State what a computed value means in context, with units." },
+      { name: "Multiple representations", example: "Connect formula, graph, table, and verbal description." },
+    ],
+    problems: [
+      { q: "For f(x)=x²−3x, simplify [f(x+h)−f(x)]/h", answer: "2x+h-3", hint: "Expand (x+h)²−3(x+h), subtract f(x), factor out h." },
+      { q: "For (x−1)(x+4)/(x−1)(x−2), classify x=1 and x=2", answer: "x=1 hole; x=2 vertical asymptote", hint: "Canceled denominator factor → hole; remaining denominator factor → asymptote." },
+      { q: "A function changes from 14 to 29 on [2,7]. Find average rate of change", answer: "3", hint: "(29−14)/(7−2)." },
+    ],
+    resources: [
+      { label: "FlippedMath AP Precalculus", url: "https://precalculus.flippedmath.com/ap-precalc.html", kind: "Course" },
+      { label: "College Board released FRQs", url: "https://apcentral.collegeboard.org/courses/ap-precalculus/exam/past-exam-questions", kind: "Official" },
+      { label: "Average rate of change video", url: "https://www.youtube.com/watch?v=lQRiw264bnI", kind: "Video" },
+    ],
+  },
+];
+
+const normalize = (s) => s.toLowerCase().replace(/\s+/g, "").replace(/[−–]/g, "-").replace(/\^/g, "");
+
+function AlgebraFluencyLab() {
+  const [active, setActive] = useState("factoring");
+  const [answers, setAnswers] = useState({});
+  const [checks, setChecks] = useState({});
+  const [saved, setSaved] = useState([]);
+  const [title, setTitle] = useState(""); const [url, setUrl] = useState(""); const [resourceTopic, setResourceTopic] = useState("factoring");
+  const [query, setQuery] = useState("");
+  useEffect(() => { try { setSaved(JSON.parse(localStorage.getItem("ap-precalc-links") || "[]")); } catch {} }, []);
+  const topic = topics.find(t => t.id === active);
+  const filtered = useMemo(() => topics.filter(t => (t.title+t.concept+t.types.map(x=>x.name).join(" ")).toLowerCase().includes(query.toLowerCase())), [query]);
+  function addLink(e) { e.preventDefault(); if (!title.trim() || !/^https?:\/\//i.test(url)) return; const next=[...saved,{title:title.trim(),url,topic:resourceTopic}]; setSaved(next); localStorage.setItem("ap-precalc-links",JSON.stringify(next)); setTitle(""); setUrl(""); }
+  function removeLink(i){const next=saved.filter((_,n)=>n!==i);setSaved(next);localStorage.setItem("ap-precalc-links",JSON.stringify(next));}
+
+  return <main>
+    <header className="topbar"><a className="brand" href="#top"><span>AP</span> Algebra Lab</a><nav><a href="#learn">Learn</a><a href="#practice">Practice</a><a href="#resources">Resources</a></nav><div className="status"><i/> Foundation module</div></header>
+    <section className="hero" id="top">
+      <div className="hero-copy"><p className="kicker">Algebra Fluency for AP Precalculus</p><h1>Build the algebra.<br/><em>See the function.</em></h1><p className="dek">A focused study lab for the skills beneath AP Precalculus Unit 1—organized by concept, problem type, deliberate practice, and the best next resource.</p><div className="hero-actions"><a className="primary" href="#learn">Begin module →</a><span>6 sections · 18 checks · saved resources</span></div></div>
+      <div className="formula-card"><div className="grid-lines"/><span className="tiny">TODAY’S IDEA</span><div className="equation">a² − b²</div><div className="equals">=</div><div className="equation accent">(a − b)(a + b)</div><p>Structure turns a hard expression into a useful one.</p></div>
+    </section>
+    <section className="module-strip"><span>DIAGNOSE</span><b>→</b><span>LEARN</span><b>→</b><span>PRACTICE</span><b>→</b><span>CONNECT TO AP</span></section>
+
+    <section className="study" id="learn">
+      <aside className="side"><label>Find a skill</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search topics…"/><p className="side-label">CORE SECTIONS</p>{filtered.map(t=><button className={active===t.id?"active":""} key={t.id} onClick={()=>setActive(t.id)}><span>{t.number}</span>{t.title}</button>)}<a className="ap-link" href="#ap-check">★ AP readiness check</a></aside>
+      <article className="lesson">
+        <div className={`lesson-head ${topic.color}`}><div><p>{topic.eyebrow}</p><h2>{topic.title}</h2></div><span>{topic.number} / 06</span></div>
+        <div className="concept"><h3>The essential idea</h3><p>{topic.concept}</p><div className="memory"><b>Keep in view</b>{topic.key}</div></div>
+        <div className="problem-types"><div className="section-title"><span>PROBLEM TYPES</span><p>Learn to identify the structure before choosing a method.</p></div><div className="type-grid">{topic.types.map((x,i)=><div className="type-card" key={x.name}><span>{String(i+1).padStart(2,"0")}</span><h4>{x.name}</h4><p>{x.example}</p></div>)}</div></div>
+        <div className="practice" id="practice"><div className="section-title"><span>PRACTICE STUDIO</span><p>Try each problem without notes. Use the hint only when stuck.</p></div>{topic.problems.map((p,i)=>{const key=topic.id+i;return <div className="practice-row" key={key}><div className="problem-no">{i+1}</div><div className="problem-main"><h4>{p.q}</h4><details><summary>Give me a hint</summary><p>{p.hint}</p></details><div className="answer-line"><input aria-label={`Answer to problem ${i+1}`} value={answers[key]||""} onChange={e=>setAnswers({...answers,[key]:e.target.value})} placeholder="Type your answer"/><button onClick={()=>setChecks({...checks,[key]:true})}>Check</button></div>{checks[key]&&<div className={`feedback ${normalize(answers[key]||"")===normalize(p.answer)?"correct":"review"}`}>{normalize(answers[key]||"")===normalize(p.answer)?"Correct — nice work.":<>Compare with: <b>{p.answer}</b>. If equivalent, count it correct.</>}</div>}</div></div>})}</div>
+        <div className="resources" id="resources"><div className="section-title"><span>LEARN IT ANOTHER WAY</span><p>Open a focused explanation or a longer practice path.</p></div><div className="resource-grid">{topic.resources.map(r=><a href={r.url} target="_blank" rel="noreferrer" key={r.url}><span>{r.kind}</span><h4>{r.label}</h4><b>Open ↗</b></a>)}</div></div>
+        <div className="next"><span>Next section</span><button onClick={()=>{const i=topics.findIndex(t=>t.id===topic.id); setActive(topics[(i+1)%topics.length].id); document.getElementById("learn")?.scrollIntoView({behavior:"smooth"});}}>{topics[(topics.findIndex(t=>t.id===topic.id)+1)%topics.length].title} →</button></div>
+      </article>
+    </section>
+
+    <section className="ap-check" id="ap-check"><div><p className="kicker">AP READINESS CHECK</p><h2>Can you connect the algebra<br/>to the graph?</h2><p>For <b>f(x) = (x² − 9)/(x² + x − 6)</b>, work through the full analysis.</p></div><ol><li>Factor numerator and denominator.</li><li>State every original restriction.</li><li>Simplify and identify the hole.</li><li>Find vertical and horizontal asymptotes.</li><li>Find both intercepts.</li><li>Describe where f is positive and negative.</li></ol></section>
+
+    <section className="library"><div className="library-head"><div><p className="kicker">YOUR RESOURCE SHELF</p><h2>Save a useful link.</h2><p>Add a teacher’s page, practice set, Desmos activity, or specific YouTube lesson. Links stay saved in this browser.</p></div><form onSubmit={addLink}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Resource title" required/><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://…" type="url" required/><select value={resourceTopic} onChange={e=>setResourceTopic(e.target.value)}>{topics.map(t=><option value={t.id} key={t.id}>{t.title}</option>)}</select><button>Add resource +</button></form></div>{saved.length>0?<div className="saved-grid">{saved.map((r,i)=><div className="saved" key={i}><span>{topics.find(t=>t.id===r.topic)?.title}</span><a href={r.url} target="_blank" rel="noreferrer">{r.title} ↗</a><button aria-label="Remove resource" onClick={()=>removeLink(i)}>×</button></div>)}</div>:<div className="empty">Your saved links will appear here.</div>}</section>
+    <footer><div className="brand"><span>AP</span> Algebra Lab</div><p>Built for algebra fluency, not answer collecting.</p><a href="#top">Back to top ↑</a></footer>
+  </main>;
+}
+
+ReactDOM.createRoot(document.getElementById('ap-algebra-lab-root')).render(<AlgebraFluencyLab />);
+  </script>
+</body>
+</html>
