@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>School Assignment Tracker — v3.3 Family Rewards</title>
+<title>School Assignment Tracker — v3.4 Canvas Connect</title>
 <style>
   :root{
     --bg:#f4f4f5; --card:#fff; --ink:#0f172a; --muted:#52525b; --line:#e4e4e7;
@@ -12,6 +12,7 @@
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
   .wrap{max-width:1100px;margin:0 auto;padding:16px}
   .head{position:sticky;top:0;background:#ffffffcc;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:10}
+  .version-badge{position:fixed;left:8px;top:6px;z-index:120;background:#0f172a;color:#fff;border-radius:9999px;padding:4px 8px;font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:0 2px 8px rgba(15,23,42,.18)}
   h1{font-size:20px;margin:0;font-weight:800}
   .row{display:grid;grid-template-columns:1fr;gap:16px}
   @media(min-width:980px){ .row{grid-template-columns:280px 1fr} }
@@ -162,16 +163,44 @@
   }
   @media(max-width:600px){.workspace-switch{order:3;width:100%;justify-content:center}.reward-kpis{grid-template-columns:1fr}.reward-choice{grid-template-columns:1fr}}
 
+  /* Canvas LMS workspace */
+  .canvas-shell{grid-column:1/-1;display:grid;gap:16px}
+  .canvas-hero{background:linear-gradient(135deg,#7f1d1d,#dc2626 58%,#f97316);color:#fff;border:0;overflow:hidden}
+  .canvas-hero .card-b{padding:22px}
+  .canvas-connect-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;align-items:end;margin-top:16px}
+  .canvas-connect-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}
+  .canvas-connect-grid .input{background:rgba(255,255,255,.98)}
+  .canvas-token-note{font-size:12px;line-height:1.5;color:#fee2e2;margin-top:10px}
+  .canvas-status{display:inline-flex;align-items:center;gap:7px;border-radius:9999px;background:rgba(255,255,255,.16);padding:5px 9px;font-size:12px;font-weight:800}
+  .canvas-dot{width:8px;height:8px;border-radius:50%;background:#fdba74}.canvas-dot.ok{background:#86efac}
+  .canvas-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px}
+  .canvas-course-list{display:grid;gap:7px;max-height:66vh;overflow:auto}
+  .canvas-course-btn{width:100%;text-align:left;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px;cursor:pointer}
+  .canvas-course-btn.active{border-color:#dc2626;box-shadow:0 0 0 1px #dc2626;background:#fff7ed}
+  .canvas-course-btn strong{display:block}.canvas-course-btn small{display:block;color:#64748b;margin-top:3px}
+  .canvas-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+  .canvas-tab{border:1px solid var(--line);border-radius:9999px;background:#fff;padding:7px 11px;font-weight:750;cursor:pointer}
+  .canvas-tab.active{background:#991b1b;color:#fff;border-color:#991b1b}
+  .canvas-item{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px;margin-top:9px}
+  .canvas-item h3{font-size:15px;margin:0 0 5px}.canvas-item p{color:#475569;font-size:13px;line-height:1.5;margin:7px 0}
+  .canvas-meta{display:flex;gap:7px;flex-wrap:wrap;color:#64748b;font-size:11px;margin-top:6px}
+  .canvas-empty{padding:30px 16px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:14px}
+  .canvas-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  @media(max-width:800px){.canvas-connect-grid,.canvas-layout{grid-template-columns:1fr}.canvas-course-list{max-height:280px}}
+  @media(max-width:560px){.head .wrap{padding-top:28px!important}.workspace-switch{border-radius:16px;flex-wrap:wrap}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <div class="version-badge" aria-label="App version">v3.4</div>
   <div class="head">
     <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
-      <h1>📚 School Assignment Tracker — v3.3 Family Rewards</h1>
+      <h1>📚 School Assignment Tracker — v3.4 Canvas Connect</h1>
       <div class="right" style="flex-wrap:wrap;justify-content:flex-end">
         <div class="workspace-switch" aria-label="Choose workspace">
           <button class="active" id="trackerViewBtn" type="button">Assignments</button>
+          <button id="canvasViewBtn" type="button">🎓 Canvas</button>
           <button id="rewardsViewBtn" type="button">💰 Rewards</button>
         </div>
         <span class="hint" id="cloudStatus">Supabase: checking…</span>
@@ -343,6 +372,8 @@
   const STORAGE_KEY = "assignLite_v3_ai_semesters";
   const SUPABASE_CONFIG_KEY = "assignmentTracker_supabase_config_v1";
   const PENDING_REWARD_INVITE_KEY = "assignmentTracker_pending_reward_invite";
+  const CANVAS_URL_KEY = "assignmentTracker_canvas_url_v1";
+  const CANVAS_TOKEN_KEY = "assignmentTracker_canvas_session_token_v1";
 
   // SHARED SUPABASE CONNECTION
   // Replace the two placeholder values below before uploading this file to GitHub.
@@ -395,6 +426,20 @@
   let cloudSaveTimer = null;
   let authSubscription = null;
   let currentWorkspace = "tracker";
+  let canvasState = {
+    connected:false,
+    loading:false,
+    loadingCourse:false,
+    error:"",
+    baseUrl:"",
+    token:"",
+    profile:null,
+    courses:[],
+    activeCourseId:"",
+    activeTab:"overview",
+    details:{},
+    requests:0
+  };
   let rewardState = {
     loading:false,
     section:"overview",
@@ -484,6 +529,8 @@
         classes:Array.isArray(s.classes)?s.classes.map(c=>({
           id:c.id||uid(),
           name:safe(c.name||"Untitled class"),
+          canvasCourseId:safe(c.canvasCourseId||""),
+          canvasCourseUrl:safe(c.canvasCourseUrl||""),
           classOutlineHtml:safe(c.classOutlineHtml||""),
           classesTags:Array.isArray(c.classesTags)?c.classesTags:[],
           tests:Array.isArray(c.tests)?c.tests.map(t=>({
@@ -688,6 +735,10 @@
   // ---------- UI RENDER ----------
   function render(){
     updateWorkspaceSwitch();
+    if(currentWorkspace==="canvas"){
+      renderCanvasWorkspace();
+      return;
+    }
     if(currentWorkspace==="rewards"){
       renderRewardWorkspace();
       return;
@@ -1050,11 +1101,312 @@
     }catch(err){ crash(err); }
   });
 
+  // ---------- CANVAS LMS ----------
+  function rememberedCanvasUrl(){
+    try{ return localStorage.getItem(CANVAS_URL_KEY)||""; }catch(e){ return ""; }
+  }
+
+  function sessionCanvasToken(){
+    try{ return sessionStorage.getItem(CANVAS_TOKEN_KEY)||""; }catch(e){ return ""; }
+  }
+
+  function normalizeCanvasUrl(value){
+    const raw = String(value||"").trim().replace(/\/+$/, "");
+    let url;
+    try{ url = new URL(raw); }catch(e){ throw new Error("Enter the full Canvas address, such as https://school.instructure.com"); }
+    if(url.protocol!=="https:") throw new Error("Canvas must use a secure https:// address.");
+    url.pathname = url.pathname.replace(/\/+$/, "");
+    url.search = ""; url.hash = "";
+    return url.origin + url.pathname;
+  }
+
+  function safeHttpUrl(value){
+    try{
+      const url = new URL(String(value||""), canvasState.baseUrl||location.href);
+      return ["https:","http:"].includes(url.protocol) ? url.href : "";
+    }catch(e){ return ""; }
+  }
+
+  function stripCanvasHtml(value, max=900){
+    const box = document.createElement("div");
+    box.innerHTML = String(value||"");
+    return (box.textContent||"").replace(/\s+/g," ").trim().slice(0,max);
+  }
+
+  function canvasDate(value){
+    if(!value) return "";
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleString([], {dateStyle:"medium",timeStyle:"short"});
+  }
+
+  function canvasCourse(){
+    return canvasState.courses.find(c=>String(c.id)===String(canvasState.activeCourseId)) || null;
+  }
+
+  async function canvasRequest(pathOrUrl){
+    if(!canvasState.baseUrl || !canvasState.token) throw new Error("Connect to Canvas first.");
+    const url = new URL(pathOrUrl, canvasState.baseUrl);
+    if(url.origin!==new URL(canvasState.baseUrl).origin) throw new Error("Canvas returned an unexpected API address.");
+    canvasState.requests++;
+    const response = await fetch(url.href, {
+      headers:{Authorization:"Bearer "+canvasState.token, Accept:"application/json"},
+      cache:"no-store"
+    });
+    if(!response.ok){
+      let detail="";
+      try{ detail = stripCanvasHtml((await response.json())?.errors?.[0]?.message||""); }catch(e){}
+      throw new Error("Canvas request failed ("+response.status+")"+(detail?": "+detail:""));
+    }
+    return {data:await response.json(), link:response.headers.get("Link")||""};
+  }
+
+  async function canvasRequestAll(path){
+    let next = new URL(path, canvasState.baseUrl).href;
+    const rows=[];
+    for(let page=0; next && page<10; page++){
+      const result = await canvasRequest(next);
+      if(Array.isArray(result.data)) rows.push(...result.data); else return result.data;
+      const match = result.link.split(",").map(s=>s.trim()).find(s=>/rel="next"/.test(s));
+      next = match?.match(/<([^>]+)>/)?.[1] || "";
+    }
+    return rows;
+  }
+
+  async function connectCanvas(baseUrl, token){
+    canvasState.baseUrl = normalizeCanvasUrl(baseUrl);
+    canvasState.token = String(token||"").trim();
+    if(!canvasState.token) throw new Error("Paste a Canvas access token.");
+    canvasState.loading=true; canvasState.error=""; canvasState.requests=0;
+    renderCanvasWorkspace();
+    try{
+      const [profile,courses] = await Promise.all([
+        canvasRequest("/api/v1/users/self/profile"),
+        canvasRequestAll("/api/v1/courses?enrollment_state=active&include[]=term&include[]=teachers&include[]=syllabus_body&per_page=100")
+      ]);
+      canvasState.profile = profile.data;
+      canvasState.courses = (courses||[]).filter(c=>c && c.id && c.name).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+      canvasState.activeCourseId = String(canvasState.courses[0]?.id||"");
+      canvasState.connected=true; canvasState.loading=false;
+      try{
+        localStorage.setItem(CANVAS_URL_KEY,canvasState.baseUrl);
+        sessionStorage.setItem(CANVAS_TOKEN_KEY,canvasState.token);
+      }catch(e){}
+      renderCanvasWorkspace();
+      if(canvasState.activeCourseId) await loadCanvasCourse(canvasState.activeCourseId);
+    }catch(error){
+      canvasState.loading=false; canvasState.connected=false; canvasState.error=error.message||String(error);
+      canvasState.token="";
+      try{ sessionStorage.removeItem(CANVAS_TOKEN_KEY); }catch(e){}
+      renderCanvasWorkspace();
+    }
+  }
+
+  async function loadCanvasCourse(courseId, force=false){
+    const id=String(courseId||"");
+    if(!id) return;
+    canvasState.activeCourseId=id;
+    if(canvasState.details[id] && !force){ renderCanvasWorkspace(); return; }
+    canvasState.loadingCourse=true; canvasState.error=""; renderCanvasWorkspace();
+    const encoded=encodeURIComponent(id);
+    try{
+      const [assignments,announcements,modules,files] = await Promise.all([
+        canvasRequestAll(`/api/v1/courses/${encoded}/assignments?order_by=due_at&include[]=submission&per_page=100`),
+        canvasRequestAll(`/api/v1/announcements?context_codes[]=course_${encoded}&active_only=true&per_page=100`),
+        canvasRequestAll(`/api/v1/courses/${encoded}/modules?include[]=items&per_page=100`),
+        canvasRequestAll(`/api/v1/courses/${encoded}/files?sort=updated_at&order=desc&per_page=100`)
+      ]);
+      canvasState.details[id]={assignments,announcements,modules,files,loadedAt:new Date().toISOString()};
+    }catch(error){ canvasState.error=error.message||String(error); }
+    canvasState.loadingCourse=false; renderCanvasWorkspace();
+  }
+
+  function canvasLink(url,label="Open in Canvas"){
+    const href=safeHttpUrl(url);
+    return href ? `<a class="ghost" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>` : "";
+  }
+
+  function canvasMeta(parts){
+    const clean=parts.filter(Boolean);
+    return clean.length ? `<div class="canvas-meta">${clean.map(x=>`<span>${escapeHtml(x)}</span>`).join("<span>•</span>")}</div>` : "";
+  }
+
+  function renderCanvasOverview(course,details){
+    const teachers=(course.teachers||[]).map(t=>t.display_name||t.name).filter(Boolean).join(", ");
+    const syllabus=stripCanvasHtml(course.syllabus_body||"",1800);
+    return `<div class="canvas-item">
+      <h3>${escapeHtml(course.name||"Canvas course")}</h3>
+      ${canvasMeta([course.course_code,course.term?.name,teachers?"Teacher: "+teachers:""])}
+      ${syllabus?`<p>${escapeHtml(syllabus)}</p>`:`<p>No syllabus text was returned by Canvas for this course.</p>`}
+      <div class="canvas-actions">
+        ${canvasLink(course.html_url||canvasState.baseUrl+"/courses/"+course.id)}
+        <button class="btn" data-canvas-action="import-course">Add course to tracker</button>
+        <button class="ghost" data-canvas-action="refresh-course">Refresh course</button>
+      </div>
+    </div>
+    <div class="grid grid-3" style="margin-top:12px">
+      <div class="canvas-item"><div class="hint">Assignments</div><strong>${details?.assignments?.length||0}</strong></div>
+      <div class="canvas-item"><div class="hint">Announcements</div><strong>${details?.announcements?.length||0}</strong></div>
+      <div class="canvas-item"><div class="hint">Files</div><strong>${details?.files?.length||0}</strong></div>
+    </div>`;
+  }
+
+  function renderCanvasAssignments(rows){
+    if(!rows?.length) return `<div class="canvas-empty">No assignments were returned for this course.</div>`;
+    return rows.map(a=>`<div class="canvas-item">
+      <h3>${escapeHtml(a.name||"Assignment")}</h3>
+      ${canvasMeta([a.due_at?"Due "+canvasDate(a.due_at):"No due date",a.points_possible!=null?String(a.points_possible)+" points":"",a.submission?.workflow_state?"Status: "+a.submission.workflow_state.replace(/_/g," "):""])}
+      ${a.description?`<p>${escapeHtml(stripCanvasHtml(a.description,500))}</p>`:""}
+      <div class="canvas-actions">${canvasLink(a.html_url)}</div>
+    </div>`).join("");
+  }
+
+  function renderCanvasAnnouncements(rows){
+    if(!rows?.length) return `<div class="canvas-empty">No active announcements were returned for this course.</div>`;
+    return rows.map(a=>`<div class="canvas-item">
+      <h3>${escapeHtml(a.title||"Announcement")}</h3>
+      ${canvasMeta([a.posted_at?"Posted "+canvasDate(a.posted_at):"",a.author?.display_name||a.user_name||""])}
+      <p>${escapeHtml(stripCanvasHtml(a.message||a.description||"",700))}</p>
+      <div class="canvas-actions">${canvasLink(a.html_url||a.url)}</div>
+    </div>`).join("");
+  }
+
+  function renderCanvasModules(rows){
+    if(!rows?.length) return `<div class="canvas-empty">No modules were returned for this course.</div>`;
+    return rows.map(module=>`<div class="canvas-item">
+      <h3>${escapeHtml(module.name||"Module")}</h3>
+      ${canvasMeta([module.state?"State: "+module.state:"",module.require_sequential_progress?"Complete in order":""])}
+      ${(module.items||[]).length?`<div class="files" style="margin-top:10px">${module.items.map(item=>`<div class="file">
+        <div><strong>${escapeHtml(item.title||item.type||"Item")}</strong><div class="muted">${escapeHtml(item.type||"")}${item.completion_requirement?.completed?" · Completed":""}</div></div>
+        ${canvasLink(item.html_url||item.external_url,"Open")}
+      </div>`).join("")}</div>`:`<p>No visible items in this module.</p>`}
+    </div>`).join("");
+  }
+
+  function renderCanvasFiles(rows){
+    if(!rows?.length) return `<div class="canvas-empty">No course files were returned. Files hidden by the teacher will not appear.</div>`;
+    return rows.map(f=>`<div class="canvas-item">
+      <h3>${escapeHtml(f.display_name||f.filename||"Course file")}</h3>
+      ${canvasMeta([f.content_type||"file",f.size!=null?(Number(f.size)/1024/1024).toFixed(2)+" MB":"",f.updated_at?"Updated "+canvasDate(f.updated_at):""])}
+      <div class="canvas-actions">
+        <button class="btn" data-canvas-action="download-file" data-file-id="${escapeAttr(f.id)}">Download</button>
+        ${canvasLink(f.preview_url||f.url,"Open")}
+      </div>
+    </div>`).join("");
+  }
+
+  function renderCanvasCoursePanel(course,details){
+    if(canvasState.loadingCourse && !details) return `<div class="canvas-empty">Loading assignments, announcements, modules, and files…</div>`;
+    if(!course) return `<div class="canvas-empty">Choose a Canvas course.</div>`;
+    const tabs=[
+      ["overview","Overview"],["assignments","Assignments"],["announcements","Announcements"],["modules","Modules"],["files","Files"]
+    ];
+    let body="";
+    if(canvasState.activeTab==="assignments") body=renderCanvasAssignments(details?.assignments);
+    else if(canvasState.activeTab==="announcements") body=renderCanvasAnnouncements(details?.announcements);
+    else if(canvasState.activeTab==="modules") body=renderCanvasModules(details?.modules);
+    else if(canvasState.activeTab==="files") body=renderCanvasFiles(details?.files);
+    else body=renderCanvasOverview(course,details);
+    return `<div class="canvas-tabs">${tabs.map(([id,label])=>`<button class="canvas-tab ${canvasState.activeTab===id?"active":""}" data-canvas-action="tab" data-tab="${id}">${label}</button>`).join("")}</div>
+      ${canvasState.error?`<div class="reward-alert">${escapeHtml(canvasState.error)}</div>`:""}
+      ${body}`;
+  }
+
+  function renderCanvasWorkspace(){
+    const app=$("#app"); if(!app) return;
+    updateWorkspaceSwitch();
+    const remembered=canvasState.baseUrl||rememberedCanvasUrl();
+    if(!canvasState.connected){
+      app.innerHTML=`<div class="canvas-shell">
+        <div class="card canvas-hero"><div class="card-b">
+          <div class="canvas-status"><span class="canvas-dot"></span>${canvasState.loading?"Connecting…":"Canvas not connected"}</div>
+          <h2 style="margin:12px 0 5px">Connect Canvas LMS</h2>
+          <p style="margin:0;max-width:760px;color:#fee2e2">Connect the student’s college Canvas account to see active courses and the assignments, announcements, modules, and files each teacher makes available.</p>
+          <div class="canvas-connect-grid">
+            <div><label for="canvasUrlInput">School Canvas address</label><input class="input" id="canvasUrlInput" type="url" value="${escapeAttr(remembered)}" placeholder="https://school.instructure.com"></div>
+            <div><label for="canvasTokenInput">Canvas access token</label><input class="input" id="canvasTokenInput" type="password" autocomplete="off" placeholder="Paste token"></div>
+          </div>
+          <div class="canvas-actions"><button class="btn" data-canvas-action="connect" ${canvasState.loading?"disabled":""}>${canvasState.loading?"Connecting…":"Connect to Canvas"}</button></div>
+          <div class="canvas-token-note">The token is treated like a password. It stays only in this browser tab/session and is never included in Supabase sync. In Canvas, create it under Account → Settings → Approved Integrations → New Access Token. Some schools disable personal tokens; in that case, the school’s Canvas administrator must enable an approved OAuth connection.</div>
+          ${canvasState.error?`<div class="reward-alert" style="margin-top:12px">${escapeHtml(canvasState.error)}</div>`:""}
+        </div></div>
+      </div>`;
+      return;
+    }
+    const course=canvasCourse();
+    const details=canvasState.details[String(course?.id||"")];
+    app.innerHTML=`<div class="canvas-shell">
+      <div class="card canvas-hero"><div class="card-b">
+        <div class="canvas-status"><span class="canvas-dot ok"></span>Connected as ${escapeHtml(canvasState.profile?.name||canvasState.profile?.primary_email||"Canvas student")}</div>
+        <h2 style="margin:12px 0 5px">Canvas Courses</h2>
+        <p style="margin:0;color:#fee2e2">Live information from ${escapeHtml(canvasState.baseUrl)}. Refresh a course to see the newest teacher updates.</p>
+        <div class="canvas-actions"><button class="ghost" data-canvas-action="refresh-all">Refresh courses</button><button class="ghost" data-canvas-action="disconnect">Disconnect</button></div>
+      </div></div>
+      <div class="canvas-layout">
+        <div class="card"><div class="card-h"><b>Active courses</b><span class="pill">${canvasState.courses.length}</span></div><div class="card-b">
+          <div class="canvas-course-list">${canvasState.courses.length?canvasState.courses.map(c=>`<button class="canvas-course-btn ${String(c.id)===String(canvasState.activeCourseId)?"active":""}" data-canvas-action="course" data-course-id="${escapeAttr(c.id)}"><strong>${escapeHtml(c.name)}</strong><small>${escapeHtml(c.course_code||c.term?.name||"")}</small></button>`).join(""):`<div class="canvas-empty">No active courses found.</div>`}</div>
+        </div></div>
+        <div class="card"><div class="card-h"><b>${escapeHtml(course?.name||"Course content")}</b>${canvasState.loadingCourse?`<span class="hint">Loading…</span>`:(details?.loadedAt?`<span class="hint">Updated ${escapeHtml(canvasDate(details.loadedAt))}</span>`:"")}</div><div class="card-b">${renderCanvasCoursePanel(course,details)}</div></div>
+      </div>
+    </div>`;
+  }
+
+  async function downloadCanvasFile(fileId){
+    const details=canvasState.details[String(canvasState.activeCourseId)]||{};
+    const file=(details.files||[]).find(f=>String(f.id)===String(fileId));
+    if(!file) throw new Error("Canvas file not found.");
+    const target=safeHttpUrl(file.url||file.preview_url);
+    if(!target) throw new Error("Canvas did not provide a download link.");
+    const targetUrl=new URL(target);
+    const headers=targetUrl.origin===new URL(canvasState.baseUrl).origin ? {Authorization:"Bearer "+canvasState.token} : {};
+    const response=await fetch(target,{headers});
+    if(!response.ok) throw new Error("File download failed ("+response.status+").");
+    const blob=await response.blob();
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=file.display_name||file.filename||"canvas-file";
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  }
+
+  function importCanvasCourse(){
+    const course=canvasCourse(); if(!course) return;
+    const kid=state.kids.find(k=>k.id===state.activeKidId);
+    const sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId);
+    if(!kid || !sem){ alert("First choose a student and semester in Assignments, then return to Canvas and add the course."); return; }
+    let cls=(sem.classes||[]).find(c=>String(c.canvasCourseId)===String(course.id));
+    if(!cls){
+      cls={id:uid(),name:course.name,canvasCourseId:String(course.id),canvasCourseUrl:safeHttpUrl(course.html_url||canvasState.baseUrl+"/courses/"+course.id),tests:[],classOutlineHtml:""};
+      (sem.classes=sem.classes||[]).push(cls);
+    }else{ cls.name=course.name; cls.canvasCourseUrl=safeHttpUrl(course.html_url||cls.canvasCourseUrl); }
+    state.activeClassId=cls.id; state.activeTestId=""; save();
+    alert(course.name+" is now in the assignment tracker for "+kid.name+" — "+semesterName(sem)+".");
+  }
+
+  document.addEventListener("click", async e=>{
+    const button=e.target.closest("[data-canvas-action]"); if(!button) return;
+    const action=button.dataset.canvasAction;
+    try{
+      if(action==="connect"){
+        await connectCanvas($("#canvasUrlInput")?.value,$("#canvasTokenInput")?.value); return;
+      }
+      if(action==="disconnect"){
+        try{ sessionStorage.removeItem(CANVAS_TOKEN_KEY); localStorage.removeItem(CANVAS_URL_KEY); }catch(e){}
+        canvasState={connected:false,loading:false,loadingCourse:false,error:"",baseUrl:"",token:"",profile:null,courses:[],activeCourseId:"",activeTab:"overview",details:{},requests:0};
+        renderCanvasWorkspace(); return;
+      }
+      if(action==="course"){ canvasState.activeTab="overview"; await loadCanvasCourse(button.dataset.courseId); return; }
+      if(action==="tab"){ canvasState.activeTab=button.dataset.tab||"overview"; renderCanvasWorkspace(); return; }
+      if(action==="refresh-course"){ await loadCanvasCourse(canvasState.activeCourseId,true); return; }
+      if(action==="refresh-all"){ await connectCanvas(canvasState.baseUrl,canvasState.token); return; }
+      if(action==="download-file"){ button.disabled=true; await downloadCanvasFile(button.dataset.fileId); button.disabled=false; return; }
+      if(action==="import-course"){ importCanvasCourse(); return; }
+    }catch(error){ button.disabled=false; canvasState.error=error.message||String(error); renderCanvasWorkspace(); }
+  });
+
   // ---------- FAMILY REWARDS ----------
   function updateWorkspaceSwitch(){
     const trackerBtn = $("#trackerViewBtn");
+    const canvasBtn = $("#canvasViewBtn");
     const rewardsBtn = $("#rewardsViewBtn");
     if(trackerBtn) trackerBtn.classList.toggle("active", currentWorkspace==="tracker");
+    if(canvasBtn) canvasBtn.classList.toggle("active", currentWorkspace==="canvas");
     if(rewardsBtn) rewardsBtn.classList.toggle("active", currentWorkspace==="rewards");
   }
 
@@ -1641,6 +1993,7 @@
   });
 
   $("#trackerViewBtn").addEventListener("click", ()=>{ currentWorkspace="tracker"; render(); });
+  $("#canvasViewBtn").addEventListener("click", ()=>{ currentWorkspace="canvas"; render(); });
   $("#rewardsViewBtn").addEventListener("click", openRewardWorkspace);
 
   // ---------- Settings ----------
@@ -1894,6 +2247,7 @@
   });
   function resetAll(){
     try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    try{ localStorage.removeItem(CANVAS_URL_KEY); sessionStorage.removeItem(CANVAS_TOKEN_KEY); }catch(e){}
     location.reload();
   }
   function crash(err){
@@ -1932,6 +2286,8 @@
   $("#accountBtn").addEventListener("click", ()=>showAuth());
   $("#signOutBtn").addEventListener("click", async ()=>{
     if(sb) await sb.auth.signOut();
+    try{ sessionStorage.removeItem(CANVAS_TOKEN_KEY); }catch(e){}
+    canvasState={connected:false,loading:false,loadingCourse:false,error:"",baseUrl:"",token:"",profile:null,courses:[],activeCourseId:"",activeTab:"overview",details:{},requests:0};
     currentUser = null;
     cloudReady = false;
     currentWorkspace = "tracker";
@@ -1965,6 +2321,9 @@
   // First paint
   render();
   initSupabase();
+  const savedCanvasUrl=rememberedCanvasUrl();
+  const savedCanvasToken=sessionCanvasToken();
+  if(savedCanvasUrl && savedCanvasToken){ connectCanvas(savedCanvasUrl,savedCanvasToken); }
 })();
 </script>
 </body>
