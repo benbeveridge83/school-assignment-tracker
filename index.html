@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>School Assignment Tracker — v3.5 Canvas Proxy</title>
+<title>School Assignment Tracker — v3.6 Independent Canvas Content</title>
 <style>
   :root{
     --bg:#f4f4f5; --card:#fff; --ink:#0f172a; --muted:#52525b; --line:#e4e4e7;
@@ -193,10 +193,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="version-badge" aria-label="App version">v3.5</div>
+  <div class="version-badge" aria-label="App version">v3.6</div>
   <div class="head">
     <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
-      <h1>📚 School Assignment Tracker — v3.5 Canvas Proxy</h1>
+      <h1>📚 School Assignment Tracker — v3.6 Canvas Content</h1>
       <div class="right" style="flex-wrap:wrap;justify-content:flex-end">
         <div class="workspace-switch" aria-label="Choose workspace">
           <button class="active" id="trackerViewBtn" type="button">Assignments</button>
@@ -1227,15 +1227,20 @@
     if(canvasState.details[id] && !force){ renderCanvasWorkspace(); return; }
     canvasState.loadingCourse=true; canvasState.error=""; renderCanvasWorkspace();
     const encoded=encodeURIComponent(id);
-    try{
-      const [assignments,announcements,modules,files] = await Promise.all([
-        canvasRequestAll(`/api/v1/courses/${encoded}/assignments?order_by=due_at&include[]=submission&per_page=100`),
-        canvasRequestAll(`/api/v1/announcements?context_codes[]=course_${encoded}&active_only=true&per_page=100`),
-        canvasRequestAll(`/api/v1/courses/${encoded}/modules?include[]=items&per_page=100`),
-        canvasRequestAll(`/api/v1/courses/${encoded}/files?sort=updated_at&order=desc&per_page=100`)
-      ]);
-      canvasState.details[id]={assignments,announcements,modules,files,loadedAt:new Date().toISOString()};
-    }catch(error){ canvasState.error=error.message||String(error); }
+    const sections=[
+      ["assignments",canvasRequestAll(`/api/v1/courses/${encoded}/assignments?order_by=due_at&include[]=submission&per_page=100`)],
+      ["announcements",canvasRequestAll(`/api/v1/announcements?context_codes[]=course_${encoded}&active_only=true&per_page=100`)],
+      ["modules",canvasRequestAll(`/api/v1/courses/${encoded}/modules?include[]=items&per_page=100`)],
+      ["files",canvasRequestAll(`/api/v1/courses/${encoded}/files?sort=updated_at&order=desc&per_page=100`)]
+    ];
+    const results=await Promise.allSettled(sections.map(([,request])=>request));
+    const details={assignments:[],announcements:[],modules:[],files:[],errors:{},loadedAt:new Date().toISOString()};
+    results.forEach((result,index)=>{
+      const key=sections[index][0];
+      if(result.status==="fulfilled") details[key]=Array.isArray(result.value)?result.value:[];
+      else details.errors[key]=stripCanvasHtml(result.reason?.message||String(result.reason||"Canvas denied this request."),500);
+    });
+    canvasState.details[id]=details;
     canvasState.loadingCourse=false; renderCanvasWorkspace();
   }
 
@@ -1263,10 +1268,23 @@
       </div>
     </div>
     <div class="grid grid-3" style="margin-top:12px">
-      <div class="canvas-item"><div class="hint">Assignments</div><strong>${details?.assignments?.length||0}</strong></div>
-      <div class="canvas-item"><div class="hint">Announcements</div><strong>${details?.announcements?.length||0}</strong></div>
-      <div class="canvas-item"><div class="hint">Files</div><strong>${details?.files?.length||0}</strong></div>
+      ${renderCanvasCount(details,"assignments","Assignments")}
+      ${renderCanvasCount(details,"announcements","Announcements")}
+      ${renderCanvasCount(details,"files","Files")}
     </div>`;
+  }
+
+  function renderCanvasCount(details,key,label){
+    const denied=details?.errors?.[key];
+    return `<div class="canvas-item"><div class="hint">${escapeHtml(label)}</div>${denied?`<strong>Unavailable</strong><div class="muted" style="margin-top:4px">Canvas blocked this section.</div>`:`<strong>${details?.[key]?.length||0}</strong>`}</div>`;
+  }
+
+  function renderCanvasSection(details,key,label,renderer){
+    const denied=details?.errors?.[key];
+    if(denied){
+      return `<div class="reward-alert"><strong>${escapeHtml(label)} could not be loaded.</strong><div style="margin-top:5px">${escapeHtml(denied)}</div><div class="muted" style="margin-top:6px">Other Canvas tabs may still be available.</div></div>`;
+    }
+    return renderer(details?.[key]);
   }
 
   function renderCanvasAssignments(rows){
@@ -1320,10 +1338,10 @@
       ["overview","Overview"],["assignments","Assignments"],["announcements","Announcements"],["modules","Modules"],["files","Files"]
     ];
     let body="";
-    if(canvasState.activeTab==="assignments") body=renderCanvasAssignments(details?.assignments);
-    else if(canvasState.activeTab==="announcements") body=renderCanvasAnnouncements(details?.announcements);
-    else if(canvasState.activeTab==="modules") body=renderCanvasModules(details?.modules);
-    else if(canvasState.activeTab==="files") body=renderCanvasFiles(details?.files);
+    if(canvasState.activeTab==="assignments") body=renderCanvasSection(details,"assignments","Assignments",renderCanvasAssignments);
+    else if(canvasState.activeTab==="announcements") body=renderCanvasSection(details,"announcements","Announcements",renderCanvasAnnouncements);
+    else if(canvasState.activeTab==="modules") body=renderCanvasSection(details,"modules","Modules",renderCanvasModules);
+    else if(canvasState.activeTab==="files") body=renderCanvasSection(details,"files","Files",renderCanvasFiles);
     else body=renderCanvasOverview(course,details);
     return `<div class="canvas-tabs">${tabs.map(([id,label])=>`<button class="canvas-tab ${canvasState.activeTab===id?"active":""}" data-canvas-action="tab" data-tab="${id}">${label}</button>`).join("")}</div>
       ${canvasState.error?`<div class="reward-alert">${escapeHtml(canvasState.error)}</div>`:""}
