@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>School Assignment Tracker — v3.4 Canvas Connect</title>
+<title>School Assignment Tracker — v3.5 Canvas Proxy</title>
 <style>
   :root{
     --bg:#f4f4f5; --card:#fff; --ink:#0f172a; --muted:#52525b; --line:#e4e4e7;
@@ -193,10 +193,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="version-badge" aria-label="App version">v3.4</div>
+  <div class="version-badge" aria-label="App version">v3.5</div>
   <div class="head">
     <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
-      <h1>📚 School Assignment Tracker — v3.4 Canvas Connect</h1>
+      <h1>📚 School Assignment Tracker — v3.5 Canvas Proxy</h1>
       <div class="right" style="flex-wrap:wrap;justify-content:flex-end">
         <div class="workspace-switch" aria-label="Choose workspace">
           <button class="active" id="trackerViewBtn" type="button">Assignments</button>
@@ -374,6 +374,7 @@
   const PENDING_REWARD_INVITE_KEY = "assignmentTracker_pending_reward_invite";
   const CANVAS_URL_KEY = "assignmentTracker_canvas_url_v1";
   const CANVAS_TOKEN_KEY = "assignmentTracker_canvas_session_token_v1";
+  const CANVAS_PROXY_FUNCTION = "canvas-proxy";
 
   // SHARED SUPABASE CONNECTION
   // Replace the two placeholder values below before uploading this file to GitHub.
@@ -1115,9 +1116,8 @@
     let url;
     try{ url = new URL(raw); }catch(e){ throw new Error("Enter the full Canvas address, such as https://school.instructure.com"); }
     if(url.protocol!=="https:") throw new Error("Canvas must use a secure https:// address.");
-    url.pathname = url.pathname.replace(/\/+$/, "");
     url.search = ""; url.hash = "";
-    return url.origin + url.pathname;
+    return url.origin;
   }
 
   function safeHttpUrl(value){
@@ -1143,21 +1143,40 @@
     return canvasState.courses.find(c=>String(c.id)===String(canvasState.activeCourseId)) || null;
   }
 
+  async function canvasProxyError(error, fallback="Canvas connection failed."){
+    try{
+      const response=error?.context;
+      if(response && typeof response.clone==="function"){
+        const payload=await response.clone().json();
+        const detail=stripCanvasHtml(payload?.error||payload?.message||"");
+        if(detail) return detail;
+      }
+    }catch(e){}
+    return stripCanvasHtml(error?.message||fallback) || fallback;
+  }
+
+  async function invokeCanvasProxy(target, responseType="json"){
+    if(!sb || !currentUser) throw new Error("Sign in to the tracker before connecting Canvas.");
+    const {data,error}=await sb.functions.invoke(CANVAS_PROXY_FUNCTION, {
+      body:{
+        canvasBaseUrl:canvasState.baseUrl,
+        canvasToken:canvasState.token,
+        target,
+        responseType
+      }
+    });
+    if(error) throw new Error(await canvasProxyError(error));
+    return data;
+  }
+
   async function canvasRequest(pathOrUrl){
     if(!canvasState.baseUrl || !canvasState.token) throw new Error("Connect to Canvas first.");
     const url = new URL(pathOrUrl, canvasState.baseUrl);
     if(url.origin!==new URL(canvasState.baseUrl).origin) throw new Error("Canvas returned an unexpected API address.");
     canvasState.requests++;
-    const response = await fetch(url.href, {
-      headers:{Authorization:"Bearer "+canvasState.token, Accept:"application/json"},
-      cache:"no-store"
-    });
-    if(!response.ok){
-      let detail="";
-      try{ detail = stripCanvasHtml((await response.json())?.errors?.[0]?.message||""); }catch(e){}
-      throw new Error("Canvas request failed ("+response.status+")"+(detail?": "+detail:""));
-    }
-    return {data:await response.json(), link:response.headers.get("Link")||""};
+    const payload=await invokeCanvasProxy(url.href,"json");
+    if(!payload || !Object.prototype.hasOwnProperty.call(payload,"data")) throw new Error("Canvas returned an unexpected response.");
+    return {data:payload.data,link:payload.link||""};
   }
 
   async function canvasRequestAll(path){
@@ -1326,7 +1345,7 @@
             <div><label for="canvasTokenInput">Canvas access token</label><input class="input" id="canvasTokenInput" type="password" autocomplete="off" placeholder="Paste token"></div>
           </div>
           <div class="canvas-actions"><button class="btn" data-canvas-action="connect" ${canvasState.loading?"disabled":""}>${canvasState.loading?"Connecting…":"Connect to Canvas"}</button></div>
-          <div class="canvas-token-note">The token is treated like a password. It stays only in this browser tab/session and is never included in Supabase sync. In Canvas, create it under Account → Settings → Approved Integrations → New Access Token. Some schools disable personal tokens; in that case, the school’s Canvas administrator must enable an approved OAuth connection.</div>
+          <div class="canvas-token-note">The token is treated like a password. It stays only in this browser tab/session, is never included in Supabase data sync, and is sent through the tracker’s authenticated Canvas proxy only when loading Canvas content. In Canvas, create it under Account → Settings → Approved Integrations → New Access Token.</div>
           ${canvasState.error?`<div class="reward-alert" style="margin-top:12px">${escapeHtml(canvasState.error)}</div>`:""}
         </div></div>
       </div>`;
@@ -1357,10 +1376,9 @@
     const target=safeHttpUrl(file.url||file.preview_url);
     if(!target) throw new Error("Canvas did not provide a download link.");
     const targetUrl=new URL(target);
-    const headers=targetUrl.origin===new URL(canvasState.baseUrl).origin ? {Authorization:"Bearer "+canvasState.token} : {};
-    const response=await fetch(target,{headers});
-    if(!response.ok) throw new Error("File download failed ("+response.status+").");
-    const blob=await response.blob();
+    if(targetUrl.origin!==new URL(canvasState.baseUrl).origin) throw new Error("Canvas returned an unexpected file address.");
+    const result=await invokeCanvasProxy(targetUrl.href,"binary");
+    const blob=result instanceof Blob ? result : new Blob([result],{type:file["content-type"]||"application/octet-stream"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=file.display_name||file.filename||"canvas-file";
     document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   }
