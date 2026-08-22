@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>School Assignment Tracker — v3.6 Independent Canvas Content</title>
+<title>School Assignment Tracker — v3.8 Canvas + Google Classroom</title>
 <style>
   :root{
     --bg:#f4f4f5; --card:#fff; --ink:#0f172a; --muted:#52525b; --line:#e4e4e7;
@@ -189,18 +189,39 @@
   @media(max-width:800px){.canvas-connect-grid,.canvas-layout{grid-template-columns:1fr}.canvas-course-list{max-height:280px}}
   @media(max-width:560px){.head .wrap{padding-top:28px!important}.workspace-switch{border-radius:16px;flex-wrap:wrap}}
 
+  /* v3.8 calendar, LMS import, and study tools */
+  .calendar{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .calendar-head,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+  .calendar-head div{padding:7px;text-align:center;font-size:11px;font-weight:800;color:#64748b;background:#f8fafc;border-bottom:1px solid var(--line)}
+  .calendar-day{min-height:92px;padding:6px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;overflow:hidden}
+  .calendar-day:nth-child(7n){border-right:0}.calendar-day.outside{background:#fafafa;color:#a1a1aa}
+  .calendar-day.today{box-shadow:inset 0 0 0 2px #2563eb}.calendar-date{font-size:11px;font-weight:800;margin-bottom:4px}
+  .calendar-event{display:block;width:100%;border:0;border-left:4px solid var(--event-color,#64748b);border-radius:6px;background:#f8fafc;padding:4px 5px;margin:3px 0;text-align:left;font-size:10px;line-height:1.25;cursor:pointer;overflow:hidden}
+  .canvas-study-card{border:1px solid #fecaca;border-radius:14px;background:#fff7ed;padding:12px;margin:12px 0}
+  .bulk-course{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;background:#fff}
+  .bulk-course input{margin-top:4px}.settings-type-row{display:grid;grid-template-columns:150px 1fr 60px auto;gap:8px;align-items:center;margin-top:8px}
+  .canvas-info-shell{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fafafa}
+  .classroom-hero{background:linear-gradient(135deg,#064e3b,#0f766e 58%,#2563eb);color:#fff;border:0;overflow:hidden}
+  .classroom-hero .card-b{padding:22px}
+  .classroom-hero p{color:#d1fae5}
+  .classroom-tab.active{background:#0f766e;color:#fff;border-color:#0f766e}
+  .classroom-course-btn.active{border-color:#0f766e;box-shadow:0 0 0 1px #0f766e;background:#ecfdf5}
+  .google-study-card{border:1px solid #99f6e4;border-radius:14px;background:#f0fdfa;padding:12px;margin:12px 0}
+  @media(max-width:700px){.calendar-day{min-height:65px;padding:3px}.calendar-event{font-size:8px}.settings-type-row{grid-template-columns:1fr}.calendar-date{font-size:9px}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="version-badge" aria-label="App version">v3.6</div>
+  <div class="version-badge" aria-label="App version">v3.8</div>
   <div class="head">
     <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
-      <h1>📚 School Assignment Tracker — v3.6 Canvas Content</h1>
+      <h1>📚 School Assignment Tracker — v3.8 Canvas + Google Classroom</h1>
       <div class="right" style="flex-wrap:wrap;justify-content:flex-end">
         <div class="workspace-switch" aria-label="Choose workspace">
           <button class="active" id="trackerViewBtn" type="button">Assignments</button>
           <button id="canvasViewBtn" type="button">🎓 Canvas</button>
+          <button id="classroomViewBtn" type="button">📗 Google Classroom</button>
           <button id="rewardsViewBtn" type="button">💰 Rewards</button>
         </div>
         <span class="hint" id="cloudStatus">Supabase: checking…</span>
@@ -352,8 +373,41 @@
               <div class="hint">For PDFs, this app will try to load PDF.js from a CDN. If you're fully offline, upload .txt/.md for best results.</div>
             </div>
           </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-h"><div><b>Calendar event types</b><div class="hint">Classes are the calendar categories. These editable types are the subcategories.</div></div><button class="ghost" id="addCalendarTypeBtn">+ Type</button></div>
+            <div class="card-b"><div id="calendarTypesEditor"></div></div>
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Bulk LMS Import Modal -->
+  <div class="modal" id="bulkImportModal" aria-hidden="true">
+    <div class="modal-card" style="max-width:760px">
+      <div class="modal-h"><div><strong id="bulkImportTitle">Import courses</strong><div class="hint" id="bulkImportTarget"></div></div><button class="btn" id="bulkImportCloseBtn">Close</button></div>
+      <div class="modal-b"><div class="wrap">
+        <div class="card"><div class="card-b">
+          <div class="hint">Academic courses are selected automatically. Uncheck orientation, support, or any course you do not want.</div>
+          <div id="bulkCourseList"></div>
+          <div class="canvas-actions"><button class="btn accent" id="bulkImportRunBtn">Import selected courses</button><span class="hint" id="bulkImportStatus"></span></div>
+        </div></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- Calendar Event Modal -->
+  <div class="modal" id="calendarEventModal" aria-hidden="true">
+    <div class="modal-card" style="max-width:620px">
+      <div class="modal-h"><strong id="calendarEventTitle">Calendar event</strong><button class="btn" id="calendarEventCloseBtn">Close</button></div>
+      <div class="modal-b"><div class="wrap"><div class="card"><div class="card-b grid">
+        <input type="hidden" id="calendarEventId">
+        <div><label class="hint">Title</label><input class="input" id="calendarEventName"></div>
+        <div class="grid grid-3"><div><label class="hint">Date</label><input class="input" type="date" id="calendarEventDate"></div><div><label class="hint">Class / category</label><select class="select" id="calendarEventClass"></select></div><div><label class="hint">Type / subcategory</label><select class="select" id="calendarEventType"></select></div></div>
+        <div><label class="hint">Notes</label><textarea class="area" id="calendarEventNotes"></textarea></div>
+        <label class="hint"><input type="checkbox" id="calendarEventReward" checked> May be used as a sponsor reward target</label>
+        <div class="right" style="justify-content:space-between"><button class="ghost" id="calendarEventDeleteBtn">Delete</button><button class="btn accent" id="calendarEventSaveBtn">Save event</button></div>
+      </div></div></div></div>
     </div>
   </div>
 
@@ -374,7 +428,10 @@
   const PENDING_REWARD_INVITE_KEY = "assignmentTracker_pending_reward_invite";
   const CANVAS_URL_KEY = "assignmentTracker_canvas_url_v1";
   const CANVAS_TOKEN_KEY = "assignmentTracker_canvas_session_token_v1";
-  const CANVAS_PROXY_FUNCTION = "canvas-proxy";
+	  const CANVAS_PROXY_FUNCTION = "canvas-proxy";
+	  const GOOGLE_CLASSROOM_FUNCTION = "google-classroom";
+	  const GOOGLE_OAUTH_STATE_KEY = "assignmentTracker_google_oauth_state_v1";
+	  const GOOGLE_OAUTH_VERIFIER_KEY = "assignmentTracker_google_oauth_verifier_v1";
 
   // SHARED SUPABASE CONNECTION
   // Replace the two placeholder values below before uploading this file to GitHub.
@@ -386,6 +443,19 @@
   const uid = ()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
   const safe = (s)=>String(s||"");
   const SETTINGS_KEY = "assignLite_settings_v1";
+  const DEFAULT_CALENDAR_TYPES = [
+    {id:"test",name:"Test / Exam",keywords:"test,exam,midterm,final",color:"#dc2626"},
+    {id:"quiz",name:"Quiz",keywords:"quiz",color:"#7c3aed"},
+    {id:"homework",name:"Homework",keywords:"homework,worksheet,problem set,practice",color:"#2563eb"},
+    {id:"project",name:"Project",keywords:"project,presentation,paper,essay",color:"#059669"},
+    {id:"discussion",name:"Discussion",keywords:"discussion,post,reply",color:"#d97706"},
+    {id:"other",name:"Other",keywords:"",color:"#64748b"}
+  ];
+  let calendarCursor = new Date();
+  let trackerClassView = "tracker";
+	  let trackerCanvasTab = "overview";
+	  let trackerGoogleTab = "overview";
+	  let bulkImportSource = "canvas";
 
   // Keep a one-time reward invitation through account creation and email confirmation.
   const initialRewardInvite = new URLSearchParams(location.search).get("reward_invite");
@@ -427,7 +497,7 @@
   let cloudSaveTimer = null;
   let authSubscription = null;
   let currentWorkspace = "tracker";
-  let canvasState = {
+	  let canvasState = {
     connected:false,
     loading:false,
     loadingCourse:false,
@@ -440,7 +510,19 @@
     activeTab:"overview",
     details:{},
     requests:0
-  };
+	  };
+	  let classroomState = {
+	    connected:false,
+	    checked:false,
+	    loading:false,
+	    loadingCourse:false,
+	    error:"",
+	    profile:null,
+	    courses:[],
+	    activeCourseId:"",
+	    activeTab:"overview",
+	    details:{}
+	  };
   let rewardState = {
     loading:false,
     section:"overview",
@@ -519,10 +601,21 @@
   }
 
   function sanitize(d){
+    d = d && typeof d==="object" ? d : {};
+    d.settings = d.settings || loadSettings();
+    d.settings.calendarTypes = Array.isArray(d.settings.calendarTypes) && d.settings.calendarTypes.length ? d.settings.calendarTypes : DEFAULT_CALENDAR_TYPES;
     d.kids = Array.isArray(d.kids)?d.kids:[];
     d.kids = d.kids.map(k=>({
       id:k.id||uid(),
       name:safe(k.name||"Unnamed"),
+      calendarEvents:Array.isArray(k.calendarEvents)?k.calendarEvents.map(ev=>({
+        id:ev.id||uid(), title:safe(ev.title||"Event"), date:safe(ev.date||""), classId:safe(ev.classId||""), typeId:safe(ev.typeId||"other"), notes:safe(ev.notes||""),
+        source:safe(ev.source||"manual"), canvasAssignmentId:safe(ev.canvasAssignmentId||""), canvasCourseId:safe(ev.canvasCourseId||""),
+        googleCourseWorkId:safe(ev.googleCourseWorkId||""), googleClassroomCourseId:safe(ev.googleClassroomCourseId||""), htmlUrl:safe(ev.htmlUrl||""),
+        pointsPossible:ev.pointsPossible==null?null:Number(ev.pointsPossible), status:safe(ev.status||""), manualOverride:!!ev.manualOverride, rewardEligible:ev.rewardEligible!==false, updatedAt:safe(ev.updatedAt||"")
+      })):[],
+      hiddenCanvasAssignments:Array.isArray(k.hiddenCanvasAssignments)?k.hiddenCanvasAssignments.map(safe):[],
+      hiddenGoogleClassroomCourseWork:Array.isArray(k.hiddenGoogleClassroomCourseWork)?k.hiddenGoogleClassroomCourseWork.map(safe):[],
       semesters:Array.isArray(k.semesters)?k.semesters.map(s=>({
         id:s.id||uid(),
         term:(s.term==="Spring"?"Spring":"Fall"),
@@ -532,6 +625,12 @@
           name:safe(c.name||"Untitled class"),
           canvasCourseId:safe(c.canvasCourseId||""),
           canvasCourseUrl:safe(c.canvasCourseUrl||""),
+          canvasInfo:c.canvasInfo && typeof c.canvasInfo==="object"?c.canvasInfo:null,
+          canvasUnassignedMaterials:Array.isArray(c.canvasUnassignedMaterials)?c.canvasUnassignedMaterials:[],
+          googleClassroomCourseId:safe(c.googleClassroomCourseId||""),
+          googleClassroomCourseUrl:safe(c.googleClassroomCourseUrl||""),
+          googleClassroomInfo:c.googleClassroomInfo && typeof c.googleClassroomInfo==="object"?c.googleClassroomInfo:null,
+          googleUnassignedMaterials:Array.isArray(c.googleUnassignedMaterials)?c.googleUnassignedMaterials:[],
           classOutlineHtml:safe(c.classOutlineHtml||""),
           classesTags:Array.isArray(c.classesTags)?c.classesTags:[],
           tests:Array.isArray(c.tests)?c.tests.map(t=>({
@@ -550,6 +649,14 @@
             })) : [],
             notes:safe(t.notes||""),
             dueDate:safe(t.dueDate||""),
+            canvasAssignmentId:safe(t.canvasAssignmentId||""),
+            canvasModuleIds:Array.isArray(t.canvasModuleIds)?t.canvasModuleIds.map(safe):[],
+            canvasMaterials:Array.isArray(t.canvasMaterials)?t.canvasMaterials:[],
+            canvasDraftOutlineHtml:safe(t.canvasDraftOutlineHtml||""),
+            googleCourseWorkId:safe(t.googleCourseWorkId||""),
+            googleTopicIds:Array.isArray(t.googleTopicIds)?t.googleTopicIds.map(safe):[],
+            googleMaterials:Array.isArray(t.googleMaterials)?t.googleMaterials:[],
+            googleDraftOutlineHtml:safe(t.googleDraftOutlineHtml||""),
             docHtml:safe(t.docHtml||""),            // legacy
             docUpdatedAt:safe(t.docUpdatedAt||""),  // legacy
             testOutlineHtml:safe(t.testOutlineHtml||"")
@@ -564,7 +671,6 @@
     if(!sem?.classes.find(c=>c.id===d.activeClassId)) d.activeClassId = sem?.classes?.[0]?.id||"";
     const cls = sem?.classes.find(c=>c.id===d.activeClassId);
     if(!cls?.tests.find(t=>t.id===d.activeTestId)) d.activeTestId = cls?.tests?.[0]?.id||"";
-    d.settings = d.settings || loadSettings();
     return d;
   }
 
@@ -677,6 +783,7 @@
     setCloudStatus("Loading Supabase data…", "cloud-warn");
     await redeemRewardInviteFromUrl();
     await loadCloudState();
+    await handleGoogleClassroomCallback();
     if(currentWorkspace==="rewards"){
       rewardState.loading = true;
       render();
@@ -733,11 +840,78 @@
     }
   }
 
+  // ---------- v3.8 CALENDAR ----------
+  function calendarTypes(){
+    state.settings = state.settings || {};
+    if(!Array.isArray(state.settings.calendarTypes) || !state.settings.calendarTypes.length) state.settings.calendarTypes=JSON.parse(JSON.stringify(DEFAULT_CALENDAR_TYPES));
+    return state.settings.calendarTypes;
+  }
+  function eventType(typeId){ return calendarTypes().find(t=>t.id===typeId)||calendarTypes().find(t=>t.id==="other")||DEFAULT_CALENDAR_TYPES.at(-1); }
+  function classifyCanvasAssignment(assignment){
+    const hay=(String(assignment?.name||"")+" "+stripCanvasHtml(assignment?.description||"",300)).toLowerCase();
+    return calendarTypes().find(t=>t.id!=="other" && String(t.keywords||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean).some(k=>hay.includes(k)))?.id || "other";
+  }
+  function classifyGoogleCourseWork(work){
+    const hay=(String(work?.title||"")+" "+String(work?.description||"")).toLowerCase();
+    return calendarTypes().find(t=>t.id!=="other" && String(t.keywords||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean).some(k=>hay.includes(k)))?.id || "other";
+  }
+  function localDateKey(value){
+    if(!value) return ""; const d=new Date(value); if(Number.isNaN(d.getTime())) return String(value).slice(0,10);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+  function renderStudentCalendar(kid,sem){
+    if(!kid) return "";
+    const year=calendarCursor.getFullYear(), month=calendarCursor.getMonth();
+    const first=new Date(year,month,1), start=new Date(year,month,1-first.getDay());
+    const events=(kid.calendarEvents||[]).filter(ev=>!sem || (sem.classes||[]).some(c=>c.id===ev.classId));
+    const days=[];
+    for(let i=0;i<42;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i); const key=localDateKey(d); const dayEvents=events.filter(ev=>ev.date===key);
+      days.push(`<div class="calendar-day ${d.getMonth()===month?"":"outside"} ${key===localDateKey(new Date())?"today":""}" data-action="calendar-add-on-day" data-date="${key}"><div class="calendar-date">${d.getDate()}</div>${dayEvents.map(ev=>{const type=eventType(ev.typeId);const c=sem?.classes?.find(x=>x.id===ev.classId);return `<button class="calendar-event" style="--event-color:${escapeAttr(type.color||"#64748b")}" data-action="calendar-edit" data-id="${escapeAttr(ev.id)}" title="${escapeAttr((c?.name||"No class")+" — "+type.name)}">${ev.rewardEligible?"💰 ":""}${escapeHtml(ev.title)}</button>`}).join("")}</div>`);
+    }
+    return `<div class="card" style="margin:0 14px 14px"><div class="card-h"><div><b>${escapeHtml(kid.name)}’s Calendar</b><div class="hint">Canvas and Google Classroom due dates update automatically. Class = category; event type = subcategory.</div></div><div class="right"><button class="ghost" data-action="calendar-prev">‹</button><strong>${first.toLocaleDateString([], {month:"long",year:"numeric"})}</strong><button class="ghost" data-action="calendar-next">›</button><button class="btn" data-action="calendar-add">+ Event</button></div></div><div class="card-b"><div class="calendar"><div class="calendar-head">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(x=>`<div>${x}</div>`).join("")}</div><div class="calendar-grid">${days.join("")}</div></div></div></div>`;
+  }
+  function openCalendarEventEditor(eventId="",date=""){
+    const kid=state.kids.find(k=>k.id===state.activeKidId); const sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId); if(!kid||!sem){alert("Choose a student and semester first.");return;}
+    const ev=(kid.calendarEvents||[]).find(x=>x.id===eventId);
+    $("#calendarEventId").value=ev?.id||""; $("#calendarEventName").value=ev?.title||""; $("#calendarEventDate").value=ev?.date||date||localDateKey(new Date()); $("#calendarEventNotes").value=ev?.notes||""; $("#calendarEventReward").checked=ev?.rewardEligible!==false;
+    $("#calendarEventClass").innerHTML=(sem.classes||[]).map(c=>`<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join("");
+    $("#calendarEventType").innerHTML=calendarTypes().map(t=>`<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)}</option>`).join("");
+    $("#calendarEventClass").value=ev?.classId||state.activeClassId||sem.classes?.[0]?.id||""; $("#calendarEventType").value=ev?.typeId||"other";
+    $("#calendarEventDeleteBtn").classList.toggle("hidden",!ev); $("#calendarEventTitle").textContent=ev?"Edit calendar event":"Add calendar event"; $("#calendarEventModal").classList.add("open");
+  }
+  function renderTrackerCanvasInfo(cls){
+    const info=cls?.canvasInfo; if(!info) return `<div class="canvas-empty">Canvas content has not been synced for this class yet. Open Canvas and refresh or import it again.</div>`;
+    const tabs=[["overview","Overview"],["assignments","Assignments"],["announcements","Announcements"],["modules","Modules"],["files","Files"]];
+    let body="";
+    if(trackerCanvasTab==="assignments") body=renderCanvasSection(info,"assignments","Assignments",renderCanvasAssignments);
+    else if(trackerCanvasTab==="announcements") body=renderCanvasSection(info,"announcements","Announcements",renderCanvasAnnouncements);
+    else if(trackerCanvasTab==="modules") body=renderCanvasSection(info,"modules","Modules",renderCanvasModules);
+    else if(trackerCanvasTab==="files") body=renderCanvasSection(info,"files","Files",renderCanvasFiles);
+    else { const c=info.course||{}; body=`<div class="canvas-item"><h3>${escapeHtml(c.name||cls.name)}</h3>${canvasMeta([c.course_code,c.term?.name,(c.teachers||[]).map(t=>t.display_name||t.name).filter(Boolean).join(", ")])}<p>${escapeHtml(stripCanvasHtml(c.syllabus_body||"",1800)||"No syllabus text was returned by Canvas.")}</p><div class="canvas-actions">${canvasLink(cls.canvasCourseUrl)}</div></div>`; }
+    return `<div class="canvas-info-shell"><div class="canvas-tabs">${tabs.map(([id,label])=>`<button class="canvas-tab ${trackerCanvasTab===id?"active":""}" data-action="tracker-canvas-tab" data-tab="${id}">${label}</button>`).join("")}</div>${body}<div class="hint" style="margin-top:10px">Last synced ${escapeHtml(canvasDate(info.loadedAt)||"not recorded")}</div></div>`;
+  }
+  function renderTrackerGoogleInfo(cls){
+    const info=cls?.googleClassroomInfo; if(!info) return `<div class="canvas-empty">Google Classroom content has not been synced for this class yet. Open Google Classroom and refresh or import it again.</div>`;
+    const tabs=[["overview","Overview"],["classwork","Classwork"],["announcements","Announcements"],["topics","Topics"],["materials","Materials"]];
+    let body="";
+    if(trackerGoogleTab==="classwork") body=renderGoogleSection(info,"courseWork","Classwork",renderGoogleCourseWork);
+    else if(trackerGoogleTab==="announcements") body=renderGoogleSection(info,"announcements","Announcements",renderGoogleAnnouncements);
+    else if(trackerGoogleTab==="topics") body=renderGoogleSection(info,"topics","Topics",renderGoogleTopics);
+    else if(trackerGoogleTab==="materials") body=renderGoogleSection(info,"courseWorkMaterials","Materials",renderGoogleMaterials);
+    else body=renderGoogleOverview(info.course||{},info);
+    return `<div class="canvas-info-shell"><div class="canvas-tabs">${tabs.map(([id,label])=>`<button class="canvas-tab classroom-tab ${trackerGoogleTab===id?"active":""}" data-action="tracker-google-tab" data-tab="${id}">${label}</button>`).join("")}</div>${body}<div class="hint" style="margin-top:10px">Last synced ${escapeHtml(canvasDate(info.loadedAt)||"not recorded")}</div></div>`;
+  }
+
   // ---------- UI RENDER ----------
   function render(){
     updateWorkspaceSwitch();
     if(currentWorkspace==="canvas"){
       renderCanvasWorkspace();
+      return;
+    }
+    if(currentWorkspace==="classroom"){
+      renderGoogleClassroomWorkspace();
       return;
     }
     if(currentWorkspace==="rewards"){
@@ -792,6 +966,7 @@
             <button class="ghost" data-action="add-precalc-class">Add AP Precalculus Class</button>
           </div>
         </div>
+        ${renderStudentCalendar(kid,sem)}
         <div class="card-h"><div><b>${kid? escapeHtml(kid.name)+"’s Semesters" : "Semesters"}</b></div>
           ${kid? `<button class="ghost" data-action="add-semester">+ Semester</button>`:''}
         </div>
@@ -834,6 +1009,10 @@
                 <button class="ghost" data-action="remove-class">Remove class</button>`:''}
             </div>`:''}
         </div>
+
+        ${(cls?.canvasCourseId||cls?.googleClassroomCourseId)?`<div class="card-h"><div><b>${escapeHtml(cls.name)}</b><div class="hint">Tracker workspace and saved LMS content</div></div><div class="tabs"><button class="tab ${trackerClassView==="tracker"?"active":""}" data-action="class-view" data-view="tracker">Study Tracker</button>${cls.canvasCourseId?`<button class="tab ${trackerClassView==="canvas"?"active":""}" data-action="class-view" data-view="canvas">Canvas Info</button>`:""}${cls.googleClassroomCourseId?`<button class="tab ${trackerClassView==="google"?"active":""}" data-action="class-view" data-view="google">Google Classroom Info</button>`:""}</div></div>${trackerClassView==="canvas"?`<div class="card-b">${renderTrackerCanvasInfo(cls)}</div>`:trackerClassView==="google"?`<div class="card-b">${renderTrackerGoogleInfo(cls)}</div>`:""}`:""}
+
+        <div class="${trackerClassView!=="tracker"&&(cls?.canvasCourseId||cls?.googleClassroomCourseId)?"hidden":""}">
 
         <div class="card-h"><div><b>${cls? escapeHtml(cls.name)+" — Tests":"Tests"}</b></div>
           ${cls? `<button class="ghost" data-action="add-test">+ Test</button>`:''}
@@ -894,6 +1073,10 @@
                 </div>`:`<div class="muted">No files yet.</div>`}
             </div>
 
+            ${cls.canvasCourseId?`<div class="canvas-study-card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><b>Canvas study materials</b><div class="hint">${(tst.canvasMaterials||[]).length} module items assigned to this test using the even percentage split.</div></div><div class="right"><button class="ghost" data-action="redistribute-modules">Redistribute modules</button><button class="btn" data-action="build-canvas-outline">Build draft outline</button></div></div>${(tst.canvasMaterials||[]).length?`<div class="files" style="margin-top:10px">${(tst.canvasMaterials||[]).slice(0,25).map(m=>`<div class="file"><div><strong>${escapeHtml(m.title||m.type||"Material")}</strong><div class="muted">${escapeHtml(m.moduleName||"")} · ${escapeHtml(m.type||"")}${m.extractedText?" · text extracted":""}</div></div>${canvasLink(m.html_url||m.external_url,"Open")}</div>`).join("")}</div>`:`<p class="muted">No module materials assigned yet. Sync this course in Canvas, then redistribute after tests exist.</p>`}<div class="canvas-actions"><button class="ghost" data-action="open-canvas-draft">Open/edit draft</button><button class="ghost" data-action="approve-canvas-draft">Approve → Test Outline</button></div></div>`:""}
+
+            ${cls.googleClassroomCourseId?`<div class="google-study-card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><b>Google Classroom study materials</b><div class="hint">${(tst.googleMaterials||[]).length} topic groups/items assigned to this test using the even percentage split.</div></div><div class="right"><button class="ghost" data-action="redistribute-google-topics">Redistribute topics</button><button class="btn" data-action="build-google-outline">Build draft outline</button></div></div>${(tst.googleMaterials||[]).length?`<div class="files" style="margin-top:10px">${(tst.googleMaterials||[]).slice(0,25).map(m=>`<div class="file"><div><strong>${escapeHtml(m.title||m.type||"Material")}</strong><div class="muted">${escapeHtml(m.topicName||"Classwork")} · ${escapeHtml(m.type||"")}${m.extractedText?" · text extracted":""}</div></div>${canvasLink(m.alternateLink||m.url,"Open")}</div>`).join("")}</div>`:`<p class="muted">No Google Classroom materials are assigned yet. Sync the course, then redistribute after tests exist.</p>`}<div class="canvas-actions"><button class="ghost" data-action="open-google-draft">Open/edit draft</button><button class="ghost" data-action="approve-google-draft">Approve → Test Outline</button></div></div>`:""}
+
             <div style="margin-top:14px;border:1px solid var(--line);background:#fafafa;padding:12px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
               <div>
                 <div style="font-weight:700">Test Outline</div>
@@ -918,6 +1101,7 @@
               </div>
             </div>
           `}
+        </div>
         </div>
       </div>
     `;
@@ -947,6 +1131,22 @@
     const tst = cls?.tests?.find(t=>t.id===state.activeTestId);
 
     try{
+      if(action==="calendar-prev"){ calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()-1,1); render(); return; }
+      if(action==="calendar-next"){ calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+1,1); render(); return; }
+      if(action==="calendar-add"){ openCalendarEventEditor(); return; }
+      if(action==="calendar-add-on-day"){ if(e.target.closest(".calendar-event")) return; openCalendarEventEditor("",el.dataset.date||""); return; }
+      if(action==="calendar-edit"){ openCalendarEventEditor(el.dataset.id||""); return; }
+      if(action==="class-view"){ trackerClassView=["canvas","google"].includes(el.dataset.view)?el.dataset.view:"tracker"; render(); return; }
+      if(action==="tracker-canvas-tab"){ trackerCanvasTab=el.dataset.tab||"overview"; render(); return; }
+      if(action==="tracker-google-tab"){ trackerGoogleTab=el.dataset.tab||"overview"; render(); return; }
+      if(action==="redistribute-modules"){ if(!cls) return; distributeCanvasModules(cls); save(); render(); alert("Canvas modules were redistributed evenly across the current tests."); return; }
+      if(action==="build-canvas-outline"){ if(!cls||!tst) return; el.disabled=true; await buildCanvasDraftOutline(cls,tst); el.disabled=false; save(); render(); return; }
+      if(action==="open-canvas-draft"){ if(!tst) return; openDocEditor({title:tst.name+" — Canvas Draft Outline",html:tst.canvasDraftOutlineHtml||`<h1>${escapeHtml(tst.name)} — Canvas Draft Outline</h1><p>Build the draft first.</p>`,onSave:html=>{tst.canvasDraftOutlineHtml=html;save();}}); return; }
+      if(action==="approve-canvas-draft"){ if(!tst?.canvasDraftOutlineHtml){alert("Build the Canvas draft first.");return;} tst.testOutlineHtml=tst.canvasDraftOutlineHtml; save(); render(); alert("Approved. The draft is now the editable Test Outline."); return; }
+      if(action==="redistribute-google-topics"){ if(!cls) return; distributeGoogleTopics(cls); save(); render(); alert("Google Classroom topics were redistributed evenly across the current tests."); return; }
+      if(action==="build-google-outline"){ if(!cls||!tst) return; el.disabled=true; await buildGoogleDraftOutline(cls,tst); el.disabled=false; save(); render(); return; }
+      if(action==="open-google-draft"){ if(!tst) return; openDocEditor({title:tst.name+" — Google Classroom Draft Outline",html:tst.googleDraftOutlineHtml||`<h1>${escapeHtml(tst.name)} — Google Classroom Draft Outline</h1><p>Build the draft first.</p>`,onSave:html=>{tst.googleDraftOutlineHtml=html;save();}}); return; }
+      if(action==="approve-google-draft"){ if(!tst?.googleDraftOutlineHtml){alert("Build the Google Classroom draft first.");return;} tst.testOutlineHtml=tst.googleDraftOutlineHtml; save(); render(); alert("Approved. The draft is now the editable Test Outline."); return; }
       if(action==="open-precalc-lab"){
         openPrecalcLab();
         return;
@@ -989,7 +1189,7 @@
         const id=uid(); state.kids.push({id,name:n,semesters:[]});
         state.activeKidId=id; state.activeSemesterId=""; state.activeClassId=""; state.activeTestId="";
       }
-      if(action==="pick-kid"){ state.activeKidId = el.getAttribute("data-id"); state.activeSemesterId=""; state.activeClassId=""; state.activeTestId=""; }
+      if(action==="pick-kid"){ state.activeKidId = el.getAttribute("data-id"); state.activeSemesterId=""; state.activeClassId=""; state.activeTestId=""; trackerClassView="tracker"; }
       if(action==="rename-kid"){ const id=el.getAttribute("data-id"); const k=state.kids.find(x=>x.id===id); if(!k) return; const n=prompt("Rename kid", k.name); if(n!=null){ k.name=n; } }
       if(action==="remove-kid"){
         const id=el.getAttribute("data-id"); if(!confirm("Remove this kid and everything inside?")) return;
@@ -1022,7 +1222,7 @@
           state.activeSemesterId=sid; state.activeClassId=""; state.activeTestId="";
         }
       }
-      if(action==="pick-semester"){ state.activeSemesterId = el.getAttribute("data-id"); state.activeClassId=""; state.activeTestId=""; }
+      if(action==="pick-semester"){ state.activeSemesterId = el.getAttribute("data-id"); state.activeClassId=""; state.activeTestId=""; trackerClassView="tracker"; }
       if(action==="remove-semester"){ if(!sem) return; if(!confirm("Remove this semester and all classes/tests inside?")) return;
         kid.semesters = kid.semesters.filter(s=>s.id!==sem.id);
         if(state.activeSemesterId===sem.id){ state.activeSemesterId = kid.semesters[0]?.id||""; state.activeClassId=""; state.activeTestId=""; }
@@ -1034,7 +1234,7 @@
       if(action==="quick-add-class"){ if(!sem) return; const inp=$("#classQuick"); const n=(inp.value||"").trim(); if(!n) return; inp.value="";
         const cid=uid(); (sem.classes=sem.classes||[]).push({id:cid,name:n,tests:[],classOutlineHtml:""}); state.activeClassId=cid; state.activeTestId="";
       }
-      if(action==="pick-class"){ state.activeClassId = el.getAttribute("data-id"); state.activeTestId=""; }
+      if(action==="pick-class"){ state.activeClassId = el.getAttribute("data-id"); state.activeTestId=""; trackerClassView="tracker"; trackerCanvasTab="overview"; trackerGoogleTab="overview"; }
       if(action==="rename-class"){ if(!cls) return; const n=prompt("Rename class", cls.name); if(n!=null){ cls.name=n; } }
       if(action==="remove-class"){ if(!cls) return; if(!confirm("Remove this class and its tests?")) return;
         sem.classes = sem.classes.filter(c=>c.id!==cls.id);
@@ -1042,15 +1242,17 @@
       }
 
       if(action==="add-test"){ if(!cls) return; const n=prompt("Test name"); if(!n) return;
-        const tid=uid(); (cls.tests=cls.tests||[]).push({id:tid,name:n,files:[],notes:"",dueDate:"",docHtml:"",docUpdatedAt:"",testOutlineHtml:""}); state.activeTestId=tid;
+        const tid=uid(); (cls.tests=cls.tests||[]).push({id:tid,name:n,files:[],notes:"",dueDate:"",docHtml:"",docUpdatedAt:"",testOutlineHtml:"",canvasModuleIds:[],canvasMaterials:[],canvasDraftOutlineHtml:"",googleTopicIds:[],googleMaterials:[],googleDraftOutlineHtml:""}); state.activeTestId=tid; if(cls.canvasCourseId) distributeCanvasModules(cls); if(cls.googleClassroomCourseId) distributeGoogleTopics(cls);
       }
       if(action==="quick-add-test"){ if(!cls) return; const inp=$("#testQuick"); const n=(inp.value||"").trim(); if(!n) return; inp.value="";
-        const tid=uid(); (cls.tests=cls.tests||[]).push({id:tid,name:n,files:[],notes:"",dueDate:"",docHtml:"",docUpdatedAt:"",testOutlineHtml:""}); state.activeTestId=tid;
+        const tid=uid(); (cls.tests=cls.tests||[]).push({id:tid,name:n,files:[],notes:"",dueDate:"",docHtml:"",docUpdatedAt:"",testOutlineHtml:"",canvasModuleIds:[],canvasMaterials:[],canvasDraftOutlineHtml:"",googleTopicIds:[],googleMaterials:[],googleDraftOutlineHtml:""}); state.activeTestId=tid; if(cls.canvasCourseId) distributeCanvasModules(cls); if(cls.googleClassroomCourseId) distributeGoogleTopics(cls);
       }
       if(action==="pick-test"){ state.activeTestId = el.getAttribute("data-id"); }
       if(action==="rename-test"){ if(!tst) return; const n=prompt("Rename test", tst.name); if(n!=null){ tst.name=n; } }
       if(action==="remove-test"){ if(!tst) return; if(!confirm("Remove this test?")) return;
         cls.tests = cls.tests.filter(t=>t.id!==tst.id);
+        if(cls.canvasCourseId) distributeCanvasModules(cls);
+        if(cls.googleClassroomCourseId) distributeGoogleTopics(cls);
         if(state.activeTestId===tst.id){ state.activeTestId = cls.tests[0]?.id||""; }
       }
 
@@ -1212,6 +1414,7 @@
       }catch(e){}
       renderCanvasWorkspace();
       if(canvasState.activeCourseId) await loadCanvasCourse(canvasState.activeCourseId);
+      await refreshImportedCourses();
     }catch(error){
       canvasState.loading=false; canvasState.connected=false; canvasState.error=error.message||String(error);
       canvasState.token="";
@@ -1220,13 +1423,8 @@
     }
   }
 
-  async function loadCanvasCourse(courseId, force=false){
-    const id=String(courseId||"");
-    if(!id) return;
-    canvasState.activeCourseId=id;
-    if(canvasState.details[id] && !force){ renderCanvasWorkspace(); return; }
-    canvasState.loadingCourse=true; canvasState.error=""; renderCanvasWorkspace();
-    const encoded=encodeURIComponent(id);
+  async function fetchCanvasCourseDetails(courseId){
+    const encoded=encodeURIComponent(String(courseId));
     const sections=[
       ["assignments",canvasRequestAll(`/api/v1/courses/${encoded}/assignments?order_by=due_at&include[]=submission&per_page=100`)],
       ["announcements",canvasRequestAll(`/api/v1/announcements?context_codes[]=course_${encoded}&active_only=true&per_page=100`)],
@@ -1235,12 +1433,19 @@
     ];
     const results=await Promise.allSettled(sections.map(([,request])=>request));
     const details={assignments:[],announcements:[],modules:[],files:[],errors:{},loadedAt:new Date().toISOString()};
-    results.forEach((result,index)=>{
-      const key=sections[index][0];
-      if(result.status==="fulfilled") details[key]=Array.isArray(result.value)?result.value:[];
-      else details.errors[key]=stripCanvasHtml(result.reason?.message||String(result.reason||"Canvas denied this request."),500);
-    });
+    results.forEach((result,index)=>{ const key=sections[index][0]; if(result.status==="fulfilled") details[key]=Array.isArray(result.value)?result.value:[]; else details.errors[key]=stripCanvasHtml(result.reason?.message||String(result.reason||"Canvas denied this request."),500); });
+    return details;
+  }
+
+  async function loadCanvasCourse(courseId, force=false){
+    const id=String(courseId||"");
+    if(!id) return;
+    canvasState.activeCourseId=id;
+    if(canvasState.details[id] && !force){ renderCanvasWorkspace(); return; }
+    canvasState.loadingCourse=true; canvasState.error=""; renderCanvasWorkspace();
+    const details=await fetchCanvasCourseDetails(id);
     canvasState.details[id]=details;
+    syncImportedCourseIfPresent(id,details);
     canvasState.loadingCourse=false; renderCanvasWorkspace();
   }
 
@@ -1376,7 +1581,7 @@
         <div class="canvas-status"><span class="canvas-dot ok"></span>Connected as ${escapeHtml(canvasState.profile?.name||canvasState.profile?.primary_email||"Canvas student")}</div>
         <h2 style="margin:12px 0 5px">Canvas Courses</h2>
         <p style="margin:0;color:#fee2e2">Live information from ${escapeHtml(canvasState.baseUrl)}. Refresh a course to see the newest teacher updates.</p>
-        <div class="canvas-actions"><button class="ghost" data-canvas-action="refresh-all">Refresh courses</button><button class="ghost" data-canvas-action="disconnect">Disconnect</button></div>
+        <div class="canvas-actions"><button class="btn" data-canvas-action="bulk-import">Import courses to selected semester</button><button class="ghost" data-canvas-action="refresh-all">Refresh courses</button><button class="ghost" data-canvas-action="disconnect">Disconnect</button></div>
       </div></div>
       <div class="canvas-layout">
         <div class="card"><div class="card-h"><b>Active courses</b><span class="pill">${canvasState.courses.length}</span></div><div class="card-b">
@@ -1401,18 +1606,72 @@
     document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   }
 
-  function importCanvasCourse(){
-    const course=canvasCourse(); if(!course) return;
-    const kid=state.kids.find(k=>k.id===state.activeKidId);
-    const sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId);
-    if(!kid || !sem){ alert("First choose a student and semester in Assignments, then return to Canvas and add the course."); return; }
+  function compactCanvasSnapshot(course,details){
+    return {course:JSON.parse(JSON.stringify(course||{})),assignments:JSON.parse(JSON.stringify(details?.assignments||[])),announcements:JSON.parse(JSON.stringify(details?.announcements||[])),modules:JSON.parse(JSON.stringify(details?.modules||[])),files:JSON.parse(JSON.stringify(details?.files||[])),errors:{...(details?.errors||{})},loadedAt:details?.loadedAt||new Date().toISOString()};
+  }
+  function upsertCanvasTests(cls,assignments){
+    (assignments||[]).filter(a=>classifyCanvasAssignment(a)==="test").forEach(a=>{
+      let tst=(cls.tests||[]).find(t=>String(t.canvasAssignmentId)===String(a.id));
+      if(!tst){ tst={id:uid(),name:a.name||"Canvas test",files:[],notes:"Imported from Canvas",dueDate:localDateKey(a.due_at),canvasAssignmentId:String(a.id),canvasModuleIds:[],canvasMaterials:[],canvasDraftOutlineHtml:"",testOutlineHtml:""}; (cls.tests=cls.tests||[]).push(tst); }
+      else { tst.name=a.name||tst.name; tst.dueDate=localDateKey(a.due_at)||tst.dueDate; }
+    });
+    cls.tests.sort((a,b)=>String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))||String(a.name).localeCompare(String(b.name)));
+  }
+  function syncCanvasAssignmentsToCalendar(kid,cls,course,assignments){
+    kid.calendarEvents=kid.calendarEvents||[]; kid.hiddenCanvasAssignments=kid.hiddenCanvasAssignments||[];
+    (assignments||[]).filter(a=>a.due_at).forEach(a=>{
+      const key=String(course.id)+":"+String(a.id); if(kid.hiddenCanvasAssignments.includes(key)) return;
+      let ev=kid.calendarEvents.find(x=>x.source==="canvas"&&String(x.canvasCourseId)===String(course.id)&&String(x.canvasAssignmentId)===String(a.id));
+      const next={title:a.name||"Canvas assignment",date:localDateKey(a.due_at),classId:cls.id,typeId:classifyCanvasAssignment(a),source:"canvas",canvasAssignmentId:String(a.id),canvasCourseId:String(course.id),htmlUrl:safeHttpUrl(a.html_url||""),pointsPossible:a.points_possible==null?null:Number(a.points_possible),status:safe(a.submission?.workflow_state||""),rewardEligible:true,updatedAt:new Date().toISOString()};
+      if(!ev){ ev={id:uid(),notes:"",manualOverride:false,...next}; kid.calendarEvents.push(ev); }
+      else { const preserved=ev.manualOverride?{title:ev.title,date:ev.date,classId:ev.classId,typeId:ev.typeId,notes:ev.notes,rewardEligible:ev.rewardEligible}:{}; Object.assign(ev,next,preserved); }
+    });
+  }
+  function distributeCanvasModules(cls){
+    const tests=(cls.tests||[]).slice().sort((a,b)=>String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))||String(a.name).localeCompare(String(b.name)));
+    const modules=(cls.canvasInfo?.modules||[]).slice().sort((a,b)=>(Number(a.position)||0)-(Number(b.position)||0));
+    tests.forEach(t=>{t.canvasModuleIds=[];t.canvasMaterials=[];});
+    if(!tests.length){ cls.canvasUnassignedMaterials=modules.flatMap(m=>(m.items||[]).map(i=>({...i,moduleId:String(m.id),moduleName:m.name||"Module"}))); return; }
+    const base=Math.floor(modules.length/tests.length), remainder=modules.length%tests.length; let cursor=0;
+    tests.forEach((t,index)=>{ const count=base+(index<remainder?1:0), mine=modules.slice(cursor,cursor+count); cursor+=count; t.canvasModuleIds=mine.map(m=>String(m.id)); t.canvasMaterials=mine.flatMap(m=>(m.items||[]).map(i=>({...i,moduleId:String(m.id),moduleName:m.name||"Module"}))); });
+    cls.canvasUnassignedMaterials=[];
+  }
+  function importCourseIntoTracker(course,details,kid,sem){
     let cls=(sem.classes||[]).find(c=>String(c.canvasCourseId)===String(course.id));
-    if(!cls){
-      cls={id:uid(),name:course.name,canvasCourseId:String(course.id),canvasCourseUrl:safeHttpUrl(course.html_url||canvasState.baseUrl+"/courses/"+course.id),tests:[],classOutlineHtml:""};
-      (sem.classes=sem.classes||[]).push(cls);
-    }else{ cls.name=course.name; cls.canvasCourseUrl=safeHttpUrl(course.html_url||cls.canvasCourseUrl); }
-    state.activeClassId=cls.id; state.activeTestId=""; save();
-    alert(course.name+" is now in the assignment tracker for "+kid.name+" — "+semesterName(sem)+".");
+    if(!cls){ cls={id:uid(),name:course.name,canvasCourseId:String(course.id),canvasCourseUrl:safeHttpUrl(course.html_url||canvasState.baseUrl+"/courses/"+course.id),tests:[],classOutlineHtml:""}; (sem.classes=sem.classes||[]).push(cls); }
+    cls.name=course.name||cls.name; cls.canvasCourseUrl=safeHttpUrl(course.html_url||cls.canvasCourseUrl); cls.canvasInfo=compactCanvasSnapshot(course,details||{});
+    upsertCanvasTests(cls,details?.assignments||[]); syncCanvasAssignmentsToCalendar(kid,cls,course,details?.assignments||[]); distributeCanvasModules(cls); return cls;
+  }
+  function syncImportedCourseIfPresent(courseId,details){
+    const course=canvasState.courses.find(c=>String(c.id)===String(courseId)); if(!course) return;
+    state.kids.forEach(k=>(k.semesters||[]).forEach(s=>{const cls=(s.classes||[]).find(c=>String(c.canvasCourseId)===String(courseId));if(cls) importCourseIntoTracker(course,details,k,s);})); save();
+  }
+  async function importCanvasCourse(){
+    const course=canvasCourse(); if(!course) return; const kid=state.kids.find(k=>k.id===state.activeKidId); const sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId);
+    if(!kid||!sem){alert("First choose a student and semester in Assignments, then return to Canvas.");return;}
+    const details=canvasState.details[String(course.id)]||await fetchCanvasCourseDetails(course.id); canvasState.details[String(course.id)]=details;
+    const cls=importCourseIntoTracker(course,details,kid,sem); state.activeClassId=cls.id;state.activeTestId=cls.tests?.[0]?.id||"";save();alert(course.name+" and its dated work are now synced to "+kid.name+" — "+semesterName(sem)+".");
+  }
+  function isAcademicCourse(course){ return !/(welcome|orientation|student use|canvas|support|tutorial|training|dccc\s*100)/i.test(`${course.name||""} ${course.course_code||""}`); }
+  function openBulkImport(){
+    const kid=state.kids.find(k=>k.id===state.activeKidId),sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId); if(!kid||!sem){alert("Choose the student and destination semester in Assignments first.");return;}
+    bulkImportSource="canvas";
+    $("#bulkImportTitle").textContent="Import Canvas courses";
+    $("#bulkImportTarget").textContent=`Destination: ${kid.name} — ${semesterName(sem)} (you can change the selected semester in Assignments)`;
+    $("#bulkCourseList").innerHTML=canvasState.courses.map(c=>`<label class="bulk-course"><input type="checkbox" data-bulk-course="${escapeAttr(c.id)}" ${isAcademicCourse(c)?"checked":""}><span><b>${escapeHtml(c.name)}</b><span class="muted" style="display:block">${escapeHtml(c.course_code||c.term?.name||"")}${isAcademicCourse(c)?" · academic course preselected":" · review before importing"}</span></span></label>`).join("");
+    $("#bulkImportStatus").textContent=""; $("#bulkImportModal").classList.add("open");
+  }
+  async function runBulkImport(){
+    const kid=state.kids.find(k=>k.id===state.activeKidId),sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId); if(!kid||!sem) throw new Error("Destination student or semester is no longer selected.");
+    const ids=$$("[data-bulk-course]:checked",$("#bulkCourseList")).map(x=>String(x.dataset.bulkCourse)); if(!ids.length){alert("Select at least one course.");return;}
+    $("#bulkImportRunBtn").disabled=true;
+    for(let i=0;i<ids.length;i++){ const id=ids[i],course=canvasState.courses.find(c=>String(c.id)===id); $("#bulkImportStatus").textContent=`Importing ${i+1} of ${ids.length}: ${course?.name||"course"}`; const details=canvasState.details[id]||await fetchCanvasCourseDetails(id); canvasState.details[id]=details; importCourseIntoTracker(course,details,kid,sem); save(); }
+    $("#bulkImportRunBtn").disabled=false; $("#bulkImportStatus").textContent=`Imported ${ids.length} course${ids.length===1?"":"s"}. Calendar due dates are synced.`; render();
+  }
+  async function refreshImportedCourses(){
+    const ids=Array.from(new Set(state.kids.flatMap(k=>(k.semesters||[]).flatMap(s=>(s.classes||[]).map(c=>String(c.canvasCourseId||"")).filter(Boolean)))));
+    for(const id of ids){ if(!canvasState.courses.some(c=>String(c.id)===id)) continue; const details=await fetchCanvasCourseDetails(id); canvasState.details[id]=details; syncImportedCourseIfPresent(id,details); }
+    if(canvasState.activeCourseId && !ids.includes(String(canvasState.activeCourseId))) await loadCanvasCourse(canvasState.activeCourseId,true); else renderCanvasWorkspace();
   }
 
   document.addEventListener("click", async e=>{
@@ -1430,19 +1689,193 @@
       if(action==="course"){ canvasState.activeTab="overview"; await loadCanvasCourse(button.dataset.courseId); return; }
       if(action==="tab"){ canvasState.activeTab=button.dataset.tab||"overview"; renderCanvasWorkspace(); return; }
       if(action==="refresh-course"){ await loadCanvasCourse(canvasState.activeCourseId,true); return; }
-      if(action==="refresh-all"){ await connectCanvas(canvasState.baseUrl,canvasState.token); return; }
+      if(action==="refresh-all"){ button.disabled=true; await refreshImportedCourses(); button.disabled=false; return; }
       if(action==="download-file"){ button.disabled=true; await downloadCanvasFile(button.dataset.fileId); button.disabled=false; return; }
       if(action==="import-course"){ importCanvasCourse(); return; }
+      if(action==="bulk-import"){ openBulkImport(); return; }
     }catch(error){ button.disabled=false; canvasState.error=error.message||String(error); renderCanvasWorkspace(); }
   });
+
+  // ---------- GOOGLE CLASSROOM ----------
+  function googleCourse(){
+    return classroomState.courses.find(c=>String(c.id)===String(classroomState.activeCourseId)) || null;
+  }
+  async function googleFunctionError(error,fallback="Google Classroom request failed."){
+    try{
+      const response=error?.context;
+      if(response && typeof response.clone==="function"){
+        const payload=await response.clone().json();
+        const detail=stripCanvasHtml(payload?.error||payload?.message||"");
+        if(detail) return detail;
+      }
+    }catch(e){}
+    return stripCanvasHtml(error?.message||fallback)||fallback;
+  }
+  async function invokeGoogleClassroom(action,extra={}){
+    if(!sb||!currentUser) throw new Error("Sign in to the tracker before connecting Google Classroom.");
+    const {data,error}=await sb.functions.invoke(GOOGLE_CLASSROOM_FUNCTION,{body:{action,...extra}});
+    if(error) throw new Error(await googleFunctionError(error));
+    if(data?.error) throw new Error(stripCanvasHtml(data.error,500));
+    return data;
+  }
+  function randomOAuthValue(bytes=32){
+    const values=crypto.getRandomValues(new Uint8Array(bytes));
+    return Array.from(values,b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  function base64Url(bytes){
+    let binary=""; bytes.forEach(b=>binary+=String.fromCharCode(b));
+    return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+  }
+  async function pkceChallenge(verifier){
+    return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier))));
+  }
+  async function startGoogleClassroomOAuth(){
+    classroomState.loading=true; classroomState.error=""; renderGoogleClassroomWorkspace();
+    const config=await invokeGoogleClassroom("config");
+    if(!config?.configured) throw new Error(config?.message||"Google Classroom has not been configured in Supabase yet.");
+    const verifier=randomOAuthValue(48),stateValue=randomOAuthValue(24);
+    sessionStorage.setItem(GOOGLE_OAUTH_VERIFIER_KEY,verifier);
+    sessionStorage.setItem(GOOGLE_OAUTH_STATE_KEY,stateValue);
+    const url=new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    url.search=new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:"code",scope:(config.scopes||[]).join(" "),access_type:"offline",prompt:"consent",include_granted_scopes:"true",state:stateValue,code_challenge:await pkceChallenge(verifier),code_challenge_method:"S256"}).toString();
+    location.assign(url.href);
+  }
+  function clearGoogleOAuthParams(){
+    const params=new URLSearchParams(location.search);
+    ["code","state","scope","authuser","prompt","hd","error","error_description"].forEach(key=>params.delete(key));
+    history.replaceState({},"",location.pathname+(params.toString()?"?"+params.toString():"")+location.hash);
+  }
+  async function handleGoogleClassroomCallback(){
+    const params=new URLSearchParams(location.search),savedState=sessionStorage.getItem(GOOGLE_OAUTH_STATE_KEY)||"";
+    if(!savedState) return;
+    currentWorkspace="classroom";
+    const returnedState=params.get("state")||"";
+    if(returnedState!==savedState){ classroomState.error="Google Classroom sign-in could not be verified. Please try connecting again."; sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY);sessionStorage.removeItem(GOOGLE_OAUTH_VERIFIER_KEY);clearGoogleOAuthParams();render();return; }
+    if(params.get("error")){ classroomState.error=params.get("error_description")||"Google Classroom permission was not granted.";sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY);sessionStorage.removeItem(GOOGLE_OAUTH_VERIFIER_KEY);clearGoogleOAuthParams();render();return; }
+    const code=params.get("code"),verifier=sessionStorage.getItem(GOOGLE_OAUTH_VERIFIER_KEY)||"";
+    if(!code||!verifier) return;
+    classroomState.loading=true; render();
+    try{
+      await invokeGoogleClassroom("exchange",{code,codeVerifier:verifier});
+      sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY);sessionStorage.removeItem(GOOGLE_OAUTH_VERIFIER_KEY);clearGoogleOAuthParams();
+      classroomState.checked=false; await loadGoogleClassroomConnection();
+    }catch(error){ classroomState.loading=false;classroomState.error=error.message||String(error);clearGoogleOAuthParams();render(); }
+  }
+  async function openGoogleClassroomWorkspace(){
+    currentWorkspace="classroom"; render();
+    if(!classroomState.checked&&!classroomState.loading) await loadGoogleClassroomConnection();
+  }
+  async function loadGoogleClassroomConnection(){
+    classroomState.loading=true;classroomState.error="";renderGoogleClassroomWorkspace();
+    try{
+      const payload=await invokeGoogleClassroom("profile_courses");
+      classroomState.profile=payload.profile||null;
+      classroomState.courses=(payload.courses||[]).filter(c=>c&&c.id&&c.name).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+      classroomState.activeCourseId=String(classroomState.activeCourseId||classroomState.courses[0]?.id||"");
+      classroomState.connected=true;classroomState.checked=true;classroomState.loading=false;renderGoogleClassroomWorkspace();
+      if(classroomState.activeCourseId) await loadGoogleCourse(classroomState.activeCourseId);
+      await refreshImportedGoogleCourses();
+    }catch(error){ classroomState.connected=false;classroomState.checked=true;classroomState.loading=false;classroomState.error=/not connected/i.test(error.message||"")?"":(error.message||String(error));renderGoogleClassroomWorkspace(); }
+  }
+  async function fetchGoogleCourseDetails(courseId){
+    const payload=await invokeGoogleClassroom("course_details",{courseId:String(courseId)});
+    return payload.details||{courseWork:[],announcements:[],topics:[],courseWorkMaterials:[],errors:{},loadedAt:new Date().toISOString()};
+  }
+  async function loadGoogleCourse(courseId,force=false){
+    const id=String(courseId||"");if(!id)return;classroomState.activeCourseId=id;
+    if(classroomState.details[id]&&!force){renderGoogleClassroomWorkspace();return;}
+    classroomState.loadingCourse=true;classroomState.error="";renderGoogleClassroomWorkspace();
+    try{const details=await fetchGoogleCourseDetails(id);classroomState.details[id]=details;syncImportedGoogleCourseIfPresent(id,details);}
+    catch(error){classroomState.error=error.message||String(error);}
+    classroomState.loadingCourse=false;renderGoogleClassroomWorkspace();
+  }
+  function googleDueDate(work){
+    const d=work?.dueDate;if(!d?.year||!d?.month||!d?.day)return "";
+    return `${String(d.year).padStart(4,"0")}-${String(d.month).padStart(2,"0")}-${String(d.day).padStart(2,"0")}`;
+  }
+  function googleAttachments(materials){
+    return (materials||[]).map(m=>{
+      if(m.driveFile?.driveFile){const f=m.driveFile.driveFile;return {type:"Google Drive",title:f.title||"Drive file",url:f.alternateLink||"",driveFileId:String(f.id||"")};}
+      if(m.youTubeVideo){return {type:"YouTube",title:m.youTubeVideo.title||"Video",url:m.youTubeVideo.alternateLink||""};}
+      if(m.link){return {type:"Link",title:m.link.title||m.link.url||"Link",url:m.link.url||""};}
+      if(m.form){return {type:"Google Form",title:m.form.title||"Form",url:m.form.formUrl||m.form.responseUrl||""};}
+      return null;
+    }).filter(Boolean);
+  }
+  function googleCourseLink(course){return course?.alternateLink||`https://classroom.google.com/c/${encodeURIComponent(String(course?.id||""))}`;}
+  function renderGoogleOverview(course,details){
+    return `<div class="canvas-item"><h3>${escapeHtml(course.name||"Google Classroom course")}</h3>${canvasMeta([course.section,course.room,course.courseState])}${course.descriptionHeading?`<p><strong>${escapeHtml(course.descriptionHeading)}</strong></p>`:""}${course.description?`<p>${escapeHtml(course.description)}</p>`:`<p>No course description was returned.</p>`}<div class="canvas-actions">${canvasLink(googleCourseLink(course),"Open in Google Classroom")}<button class="btn" data-google-action="import-course">Add course to tracker</button><button class="ghost" data-google-action="refresh-course">Refresh course</button></div></div><div class="grid grid-3" style="margin-top:12px">${renderGoogleCount(details,"courseWork","Classwork")}${renderGoogleCount(details,"announcements","Announcements")}${renderGoogleCount(details,"courseWorkMaterials","Materials")}</div>`;
+  }
+  function renderGoogleCount(details,key,label){const denied=details?.errors?.[key];return `<div class="canvas-item"><div class="hint">${escapeHtml(label)}</div>${denied?`<strong>Unavailable</strong><div class="muted" style="margin-top:4px">Google blocked this section.</div>`:`<strong>${details?.[key]?.length||0}</strong>`}</div>`;}
+  function renderGoogleSection(details,key,label,renderer){const denied=details?.errors?.[key];if(denied)return `<div class="reward-alert"><strong>${escapeHtml(label)} could not be loaded.</strong><div style="margin-top:5px">${escapeHtml(denied)}</div><div class="muted" style="margin-top:6px">Other Google Classroom tabs may still be available.</div></div>`;return renderer(details?.[key]);}
+  function renderGoogleCourseWork(rows){
+    if(!rows?.length)return `<div class="canvas-empty">No published classwork was returned for this course.</div>`;
+    return rows.map(w=>`<div class="canvas-item"><h3>${escapeHtml(w.title||"Classwork")}</h3>${canvasMeta([googleDueDate(w)?"Due "+googleDueDate(w):"No due date",w.maxPoints!=null?String(w.maxPoints)+" points":"",String(w.workType||"").replace(/_/g," ")])}${w.description?`<p>${escapeHtml(w.description.slice(0,900))}</p>`:""}${renderGoogleAttachmentList(googleAttachments(w.materials))}<div class="canvas-actions">${canvasLink(w.alternateLink,"Open")}</div></div>`).join("");
+  }
+  function renderGoogleAnnouncements(rows){
+    if(!rows?.length)return `<div class="canvas-empty">No announcements were returned for this course.</div>`;
+    return rows.map(a=>`<div class="canvas-item"><h3>Announcement</h3>${canvasMeta([a.creationTime?"Posted "+canvasDate(a.creationTime):""])}<p>${escapeHtml(String(a.text||"").slice(0,1200))}</p>${renderGoogleAttachmentList(googleAttachments(a.materials))}<div class="canvas-actions">${canvasLink(a.alternateLink,"Open")}</div></div>`).join("");
+  }
+  function renderGoogleTopics(rows){if(!rows?.length)return `<div class="canvas-empty">No topics were returned for this course.</div>`;return rows.map((t,i)=>`<div class="canvas-item"><h3>${escapeHtml(t.name||"Topic "+(i+1))}</h3>${canvasMeta([t.updateTime?"Updated "+canvasDate(t.updateTime):""])}</div>`).join("");}
+  function renderGoogleMaterials(rows){if(!rows?.length)return `<div class="canvas-empty">No classwork materials were returned for this course.</div>`;return rows.map(m=>`<div class="canvas-item"><h3>${escapeHtml(m.title||"Material")}</h3>${canvasMeta([m.creationTime?"Posted "+canvasDate(m.creationTime):""])}${m.description?`<p>${escapeHtml(m.description.slice(0,900))}</p>`:""}${renderGoogleAttachmentList(googleAttachments(m.materials))}<div class="canvas-actions">${canvasLink(m.alternateLink,"Open")}</div></div>`).join("");}
+  function renderGoogleAttachmentList(rows){if(!rows?.length)return "";return `<div class="files" style="margin-top:10px">${rows.map(a=>`<div class="file"><div><strong>${escapeHtml(a.title)}</strong><div class="muted">${escapeHtml(a.type)}</div></div>${canvasLink(a.url,"Open")}</div>`).join("")}</div>`;}
+  function renderGoogleCoursePanel(course,details){
+    if(classroomState.loadingCourse&&!details)return `<div class="canvas-empty">Loading classwork, announcements, topics, and materials…</div>`;
+    if(!course)return `<div class="canvas-empty">Choose a Google Classroom course.</div>`;
+    const tabs=[["overview","Overview"],["classwork","Classwork"],["announcements","Announcements"],["topics","Topics"],["materials","Materials"]];let body="";
+    if(classroomState.activeTab==="classwork")body=renderGoogleSection(details,"courseWork","Classwork",renderGoogleCourseWork);
+    else if(classroomState.activeTab==="announcements")body=renderGoogleSection(details,"announcements","Announcements",renderGoogleAnnouncements);
+    else if(classroomState.activeTab==="topics")body=renderGoogleSection(details,"topics","Topics",renderGoogleTopics);
+    else if(classroomState.activeTab==="materials")body=renderGoogleSection(details,"courseWorkMaterials","Materials",renderGoogleMaterials);
+    else body=renderGoogleOverview(course,details);
+    return `<div class="canvas-tabs">${tabs.map(([id,label])=>`<button class="canvas-tab classroom-tab ${classroomState.activeTab===id?"active":""}" data-google-action="tab" data-tab="${id}">${label}</button>`).join("")}</div>${classroomState.error?`<div class="reward-alert">${escapeHtml(classroomState.error)}</div>`:""}${body}`;
+  }
+  function renderGoogleClassroomWorkspace(){
+    const app=$("#app");if(!app)return;updateWorkspaceSwitch();
+    if(!classroomState.connected){app.innerHTML=`<div class="canvas-shell"><div class="card classroom-hero"><div class="card-b"><div class="canvas-status"><span class="canvas-dot"></span>${classroomState.loading?"Checking connection…":"Google Classroom not connected"}</div><h2 style="margin:12px 0 5px">Connect Google Classroom</h2><p style="margin:0;max-width:760px">Sign in with the student’s school Google account. The tracker requests read-only access to active courses, classwork, announcements, topics, materials, and attached study files.</p><div class="canvas-actions"><button class="btn" data-google-action="connect" ${classroomState.loading?"disabled":""}>${classroomState.loading?"Please wait…":"Connect Google Classroom"}</button></div><div class="canvas-token-note" style="color:#d1fae5">Google handles the sign-in. No Google password or token is entered into this tracker. The connection can be revoked here or in the student’s Google Account.</div>${classroomState.error?`<div class="reward-alert" style="margin-top:12px">${escapeHtml(classroomState.error)}</div>`:""}</div></div></div>`;return;}
+    const course=googleCourse(),details=classroomState.details[String(course?.id||"")];
+    app.innerHTML=`<div class="canvas-shell"><div class="card classroom-hero"><div class="card-b"><div class="canvas-status"><span class="canvas-dot ok"></span>Connected as ${escapeHtml(classroomState.profile?.name||classroomState.profile?.email||"Google student")}</div><h2 style="margin:12px 0 5px">Google Classroom Courses</h2><p style="margin:0">Live read-only information from Google Classroom.</p><div class="canvas-actions"><button class="btn" data-google-action="bulk-import">Import courses to selected semester</button><button class="ghost" data-google-action="refresh-all">Refresh courses</button><button class="ghost" data-google-action="disconnect">Disconnect</button></div></div></div><div class="canvas-layout"><div class="card"><div class="card-h"><b>Active courses</b><span class="pill">${classroomState.courses.length}</span></div><div class="card-b"><div class="canvas-course-list">${classroomState.courses.length?classroomState.courses.map(c=>`<button class="canvas-course-btn classroom-course-btn ${String(c.id)===String(classroomState.activeCourseId)?"active":""}" data-google-action="course" data-course-id="${escapeAttr(c.id)}"><strong>${escapeHtml(c.name)}</strong><small>${escapeHtml(c.section||c.room||c.courseState||"")}</small></button>`).join(""):`<div class="canvas-empty">No active courses found.</div>`}</div></div></div><div class="card"><div class="card-h"><b>${escapeHtml(course?.name||"Course content")}</b>${classroomState.loadingCourse?`<span class="hint">Loading…</span>`:(details?.loadedAt?`<span class="hint">Updated ${escapeHtml(canvasDate(details.loadedAt))}</span>`:"")}</div><div class="card-b">${renderGoogleCoursePanel(course,details)}</div></div></div></div>`;
+  }
+  function googleStudyItems(details){
+    const topicNames=new Map((details?.topics||[]).map(t=>[String(t.topicId),t.name||"Topic"]));
+    return [...(details?.courseWork||[]).map(x=>({...x,_kind:"Classwork"})),...(details?.courseWorkMaterials||[]).map(x=>({...x,_kind:"Material"}))].map(x=>({id:`${x._kind}:${x.id}`,title:x.title||x._kind,type:x._kind,description:x.description||"",alternateLink:x.alternateLink||"",topicId:String(x.topicId||`__item_${x._kind}_${x.id}`),topicName:topicNames.get(String(x.topicId))||"Other classwork",attachments:googleAttachments(x.materials),extractedText:""}));
+  }
+  function compactGoogleSnapshot(course,details){return {course:JSON.parse(JSON.stringify(course||{})),courseWork:JSON.parse(JSON.stringify(details?.courseWork||[])),announcements:JSON.parse(JSON.stringify(details?.announcements||[])),topics:JSON.parse(JSON.stringify(details?.topics||[])),courseWorkMaterials:JSON.parse(JSON.stringify(details?.courseWorkMaterials||[])),errors:{...(details?.errors||{})},loadedAt:details?.loadedAt||new Date().toISOString()};}
+  function upsertGoogleTests(cls,courseWork){
+    (courseWork||[]).filter(w=>classifyGoogleCourseWork(w)==="test").forEach(w=>{let tst=(cls.tests||[]).find(t=>String(t.googleCourseWorkId)===String(w.id));if(!tst){tst={id:uid(),name:w.title||"Google Classroom test",files:[],notes:"Imported from Google Classroom",dueDate:googleDueDate(w),googleCourseWorkId:String(w.id),googleTopicIds:[],googleMaterials:[],googleDraftOutlineHtml:"",testOutlineHtml:""};(cls.tests=cls.tests||[]).push(tst);}else{tst.name=w.title||tst.name;tst.dueDate=googleDueDate(w)||tst.dueDate;}});
+    cls.tests.sort((a,b)=>String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))||String(a.name).localeCompare(String(b.name)));
+  }
+  function syncGoogleCourseWorkToCalendar(kid,cls,course,rows){
+    kid.calendarEvents=kid.calendarEvents||[];kid.hiddenGoogleClassroomCourseWork=kid.hiddenGoogleClassroomCourseWork||[];
+    (rows||[]).filter(w=>googleDueDate(w)).forEach(w=>{const key=String(course.id)+":"+String(w.id);if(kid.hiddenGoogleClassroomCourseWork.includes(key))return;let ev=kid.calendarEvents.find(x=>x.source==="google_classroom"&&String(x.googleClassroomCourseId)===String(course.id)&&String(x.googleCourseWorkId)===String(w.id));const next={title:w.title||"Google Classroom assignment",date:googleDueDate(w),classId:cls.id,typeId:classifyGoogleCourseWork(w),source:"google_classroom",googleCourseWorkId:String(w.id),googleClassroomCourseId:String(course.id),htmlUrl:safeHttpUrl(w.alternateLink||""),pointsPossible:w.maxPoints==null?null:Number(w.maxPoints),status:safe(w.state||""),rewardEligible:true,updatedAt:new Date().toISOString()};if(!ev){ev={id:uid(),notes:"",manualOverride:false,canvasAssignmentId:"",canvasCourseId:"",...next};kid.calendarEvents.push(ev);}else{const preserved=ev.manualOverride?{title:ev.title,date:ev.date,classId:ev.classId,typeId:ev.typeId,notes:ev.notes,rewardEligible:ev.rewardEligible}:{};Object.assign(ev,next,preserved);}});
+  }
+  function distributeGoogleTopics(cls){
+    const tests=(cls.tests||[]).slice().sort((a,b)=>String(a.dueDate||"9999").localeCompare(String(b.dueDate||"9999"))||String(a.name).localeCompare(String(b.name)));
+    const items=googleStudyItems(cls.googleClassroomInfo||{}),topicOrder=(cls.googleClassroomInfo?.topics||[]).map(t=>String(t.topicId));const uniqueTopics=Array.from(new Set(topicOrder.concat(items.map(i=>i.topicId))));
+    tests.forEach(t=>{t.googleTopicIds=[];t.googleMaterials=[];});if(!tests.length){cls.googleUnassignedMaterials=items;return;}
+    const base=Math.floor(uniqueTopics.length/tests.length),remainder=uniqueTopics.length%tests.length;let cursor=0;
+    tests.forEach((t,index)=>{const count=base+(index<remainder?1:0),mine=uniqueTopics.slice(cursor,cursor+count);cursor+=count;t.googleTopicIds=mine;t.googleMaterials=items.filter(i=>mine.includes(i.topicId));});cls.googleUnassignedMaterials=[];
+  }
+  function importGoogleCourseIntoTracker(course,details,kid,sem){
+    let cls=(sem.classes||[]).find(c=>String(c.googleClassroomCourseId)===String(course.id));if(!cls){cls={id:uid(),name:course.name,googleClassroomCourseId:String(course.id),googleClassroomCourseUrl:safeHttpUrl(googleCourseLink(course)),tests:[],classOutlineHtml:""};(sem.classes=sem.classes||[]).push(cls);}cls.name=course.name||cls.name;cls.googleClassroomCourseUrl=safeHttpUrl(googleCourseLink(course));cls.googleClassroomInfo=compactGoogleSnapshot(course,details||{});upsertGoogleTests(cls,details?.courseWork||[]);syncGoogleCourseWorkToCalendar(kid,cls,course,details?.courseWork||[]);distributeGoogleTopics(cls);return cls;
+  }
+  function syncImportedGoogleCourseIfPresent(courseId,details){const course=classroomState.courses.find(c=>String(c.id)===String(courseId));if(!course)return;state.kids.forEach(k=>(k.semesters||[]).forEach(s=>{const cls=(s.classes||[]).find(c=>String(c.googleClassroomCourseId)===String(courseId));if(cls)importGoogleCourseIntoTracker(course,details,k,s);}));save();}
+  async function importGoogleCourse(){const course=googleCourse();if(!course)return;const kid=state.kids.find(k=>k.id===state.activeKidId),sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId);if(!kid||!sem){alert("First choose a student and semester in Assignments, then return to Google Classroom.");return;}const details=classroomState.details[String(course.id)]||await fetchGoogleCourseDetails(course.id);classroomState.details[String(course.id)]=details;const cls=importGoogleCourseIntoTracker(course,details,kid,sem);state.activeClassId=cls.id;state.activeTestId=cls.tests?.[0]?.id||"";save();alert(course.name+" and its dated work are now synced to "+kid.name+" — "+semesterName(sem)+".");}
+  function openGoogleBulkImport(){const kid=state.kids.find(k=>k.id===state.activeKidId),sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId);if(!kid||!sem){alert("Choose the student and destination semester in Assignments first.");return;}bulkImportSource="google";$("#bulkImportTitle").textContent="Import Google Classroom courses";$("#bulkImportTarget").textContent=`Destination: ${kid.name} — ${semesterName(sem)} (you can change the selected semester in Assignments)`;$("#bulkCourseList").innerHTML=classroomState.courses.map(c=>`<label class="bulk-course"><input type="checkbox" data-bulk-course="${escapeAttr(c.id)}" ${isAcademicCourse(c)?"checked":""}><span><b>${escapeHtml(c.name)}</b><span class="muted" style="display:block">${escapeHtml(c.section||c.room||"")}${isAcademicCourse(c)?" · academic course preselected":" · review before importing"}</span></span></label>`).join("");$("#bulkImportStatus").textContent="";$("#bulkImportModal").classList.add("open");}
+  async function runGoogleBulkImport(){const kid=state.kids.find(k=>k.id===state.activeKidId),sem=kid?.semesters?.find(s=>s.id===state.activeSemesterId);if(!kid||!sem)throw new Error("Destination student or semester is no longer selected.");const ids=$$("[data-bulk-course]:checked",$("#bulkCourseList")).map(x=>String(x.dataset.bulkCourse));if(!ids.length){alert("Select at least one course.");return;}$("#bulkImportRunBtn").disabled=true;for(let i=0;i<ids.length;i++){const id=ids[i],course=classroomState.courses.find(c=>String(c.id)===id);$("#bulkImportStatus").textContent=`Importing ${i+1} of ${ids.length}: ${course?.name||"course"}`;const details=classroomState.details[id]||await fetchGoogleCourseDetails(id);classroomState.details[id]=details;importGoogleCourseIntoTracker(course,details,kid,sem);save();}$("#bulkImportRunBtn").disabled=false;$("#bulkImportStatus").textContent=`Imported ${ids.length} course${ids.length===1?"":"s"}. Calendar due dates are synced.`;render();}
+  async function refreshImportedGoogleCourses(){const ids=Array.from(new Set(state.kids.flatMap(k=>(k.semesters||[]).flatMap(s=>(s.classes||[]).map(c=>String(c.googleClassroomCourseId||"")).filter(Boolean)))));for(const id of ids){if(!classroomState.courses.some(c=>String(c.id)===id))continue;const details=await fetchGoogleCourseDetails(id);classroomState.details[id]=details;syncImportedGoogleCourseIfPresent(id,details);}if(classroomState.activeCourseId&&!ids.includes(String(classroomState.activeCourseId)))await loadGoogleCourse(classroomState.activeCourseId,true);else renderGoogleClassroomWorkspace();}
+
+  document.addEventListener("click",async e=>{const button=e.target.closest("[data-google-action]");if(!button)return;const action=button.dataset.googleAction;try{if(action==="connect"){await startGoogleClassroomOAuth();return;}if(action==="disconnect"){if(confirm("Disconnect Google Classroom from this tracker account?"))await invokeGoogleClassroom("disconnect");classroomState={connected:false,checked:true,loading:false,loadingCourse:false,error:"",profile:null,courses:[],activeCourseId:"",activeTab:"overview",details:{}};renderGoogleClassroomWorkspace();return;}if(action==="course"){classroomState.activeTab="overview";await loadGoogleCourse(button.dataset.courseId);return;}if(action==="tab"){classroomState.activeTab=button.dataset.tab||"overview";renderGoogleClassroomWorkspace();return;}if(action==="refresh-course"){await loadGoogleCourse(classroomState.activeCourseId,true);return;}if(action==="refresh-all"){button.disabled=true;await loadGoogleClassroomConnection();button.disabled=false;return;}if(action==="import-course"){await importGoogleCourse();return;}if(action==="bulk-import"){openGoogleBulkImport();return;}}catch(error){button.disabled=false;classroomState.loading=false;classroomState.error=error.message||String(error);renderGoogleClassroomWorkspace();}});
 
   // ---------- FAMILY REWARDS ----------
   function updateWorkspaceSwitch(){
     const trackerBtn = $("#trackerViewBtn");
     const canvasBtn = $("#canvasViewBtn");
+    const classroomBtn = $("#classroomViewBtn");
     const rewardsBtn = $("#rewardsViewBtn");
     if(trackerBtn) trackerBtn.classList.toggle("active", currentWorkspace==="tracker");
     if(canvasBtn) canvasBtn.classList.toggle("active", currentWorkspace==="canvas");
+    if(classroomBtn) classroomBtn.classList.toggle("active", currentWorkspace==="classroom");
     if(rewardsBtn) rewardsBtn.classList.toggle("active", currentWorkspace==="rewards");
   }
 
@@ -2030,21 +2463,49 @@
 
   $("#trackerViewBtn").addEventListener("click", ()=>{ currentWorkspace="tracker"; render(); });
   $("#canvasViewBtn").addEventListener("click", ()=>{ currentWorkspace="canvas"; render(); });
+  $("#classroomViewBtn").addEventListener("click", ()=>openGoogleClassroomWorkspace().catch(error=>{classroomState.loading=false;classroomState.error=error.message||String(error);renderGoogleClassroomWorkspace();}));
   $("#rewardsViewBtn").addEventListener("click", openRewardWorkspace);
 
   // ---------- Settings ----------
+  function renderCalendarTypesEditor(){
+    $("#calendarTypesEditor").innerHTML=calendarTypes().map((t,i)=>`<div class="settings-type-row" data-type-row="${i}"><input class="input" data-type-name value="${escapeAttr(t.name)}" aria-label="Type name"><input class="input" data-type-keywords value="${escapeAttr(t.keywords||"")}" placeholder="keywords, separated by commas" aria-label="Matching keywords"><input class="input" data-type-color type="color" value="${escapeAttr(t.color||"#64748b")}" aria-label="Color"><button class="ghost" data-settings-action="remove-type" data-index="${i}">Remove</button></div>`).join("");
+  }
+  function collectCalendarTypes(){
+    const old=calendarTypes(); const rows=$$("[data-type-row]",$("#calendarTypesEditor"));
+    state.settings.calendarTypes=rows.map((row,i)=>({id:old[Number(row.dataset.typeRow)]?.id||("custom_"+uid()),name:row.querySelector("[data-type-name]").value.trim()||"Event",keywords:row.querySelector("[data-type-keywords]").value.trim(),color:row.querySelector("[data-type-color]").value||"#64748b"}));
+    if(!state.settings.calendarTypes.some(t=>t.id==="other")) state.settings.calendarTypes.push({...DEFAULT_CALENDAR_TYPES.at(-1)});
+  }
   $("#settingsBtn").addEventListener("click", ()=>{
     const m = $("#settingsModal"); m.classList.add("open");
     $("#apiKeyInput").value = state.settings?.apiKey||"";
+    renderCalendarTypesEditor();
   });
   $("#settingsCloseBtn").addEventListener("click", ()=>$("#settingsModal").classList.remove("open"));
   $("#saveSettingsBtn").addEventListener("click", ()=>{
     state.settings = state.settings || {};
     state.settings.apiKey = $("#apiKeyInput").value.trim();
+    collectCalendarTypes();
     saveSettings(state.settings); save(); alert("Saved.");
   });
   $("#clearSettingsBtn").addEventListener("click", ()=>{
-    if(confirm("Clear saved settings?")){ state.settings={}; saveSettings(state.settings); save(); $("#apiKeyInput").value=""; }
+    if(confirm("Clear saved settings?")){ state.settings={calendarTypes:JSON.parse(JSON.stringify(DEFAULT_CALENDAR_TYPES))}; saveSettings(state.settings); save(); $("#apiKeyInput").value=""; renderCalendarTypesEditor(); }
+  });
+  $("#addCalendarTypeBtn").addEventListener("click",()=>{collectCalendarTypes();state.settings.calendarTypes.splice(Math.max(0,state.settings.calendarTypes.length-1),0,{id:"custom_"+uid(),name:"New type",keywords:"",color:"#0ea5e9"});renderCalendarTypesEditor();});
+  $("#calendarTypesEditor").addEventListener("click",e=>{const b=e.target.closest("[data-settings-action='remove-type']");if(!b)return;collectCalendarTypes();const index=Number(b.dataset.index);if(state.settings.calendarTypes[index]?.id==="other"){alert("The Other fallback type cannot be removed.");return;}state.settings.calendarTypes.splice(index,1);renderCalendarTypesEditor();});
+
+  $("#bulkImportCloseBtn").addEventListener("click",()=>$("#bulkImportModal").classList.remove("open"));
+  $("#bulkImportRunBtn").addEventListener("click",()=>{const task=bulkImportSource==="google"?runGoogleBulkImport():runBulkImport();task.catch(error=>{$("#bulkImportRunBtn").disabled=false;$("#bulkImportStatus").textContent=error.message||String(error);});});
+  $("#calendarEventCloseBtn").addEventListener("click",()=>$("#calendarEventModal").classList.remove("open"));
+  $("#calendarEventSaveBtn").addEventListener("click",()=>{
+    const kid=state.kids.find(k=>k.id===state.activeKidId); if(!kid)return; kid.calendarEvents=kid.calendarEvents||[]; const id=$("#calendarEventId").value; let ev=kid.calendarEvents.find(x=>x.id===id);
+    const data={title:$("#calendarEventName").value.trim()||"Event",date:$("#calendarEventDate").value,classId:$("#calendarEventClass").value,typeId:$("#calendarEventType").value,notes:$("#calendarEventNotes").value,rewardEligible:$("#calendarEventReward").checked,manualOverride:true,updatedAt:new Date().toISOString()};
+    if(ev) Object.assign(ev,data); else kid.calendarEvents.push({id:uid(),source:"manual",canvasAssignmentId:"",canvasCourseId:"",googleCourseWorkId:"",googleClassroomCourseId:"",htmlUrl:"",...data}); save(); $("#calendarEventModal").classList.remove("open"); render();
+  });
+  $("#calendarEventDeleteBtn").addEventListener("click",()=>{
+    const kid=state.kids.find(k=>k.id===state.activeKidId),id=$("#calendarEventId").value,ev=kid?.calendarEvents?.find(x=>x.id===id); if(!kid||!ev||!confirm("Delete this calendar event?"))return;
+    if(ev.source==="canvas"){kid.hiddenCanvasAssignments=kid.hiddenCanvasAssignments||[];kid.hiddenCanvasAssignments.push(String(ev.canvasCourseId)+":"+String(ev.canvasAssignmentId));}
+    if(ev.source==="google_classroom"){kid.hiddenGoogleClassroomCourseWork=kid.hiddenGoogleClassroomCourseWork||[];kid.hiddenGoogleClassroomCourseWork.push(String(ev.googleClassroomCourseId)+":"+String(ev.googleCourseWorkId));}
+    kid.calendarEvents=kid.calendarEvents.filter(x=>x.id!==id); save(); $("#calendarEventModal").classList.remove("open"); render();
   });
 
   // ---------- Modal editors ----------
@@ -2153,6 +2614,76 @@
       out += line + "\n";
     }
     return out;
+  }
+
+  async function loadJsZip(){
+    if(window.JSZip) return true;
+    const s=document.createElement("script"); s.src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"; s.referrerPolicy="no-referrer";
+    const ok=await new Promise(resolve=>{s.onload=()=>resolve(true);s.onerror=()=>resolve(false);document.head.appendChild(s);}); return ok;
+  }
+  function xmlText(xml){ const doc=new DOMParser().parseFromString(xml,"application/xml"); return Array.from(doc.querySelectorAll("t")).map(x=>x.textContent||"").join(" ").replace(/\s+/g," ").trim(); }
+  async function extractOfficeText(blob,name){
+    if(!await loadJsZip()) return ""; const zip=await window.JSZip.loadAsync(await blob.arrayBuffer()); const lower=String(name||"").toLowerCase(); let paths=[];
+    if(lower.endsWith(".pptx")) paths=Object.keys(zip.files).filter(p=>/^ppt\/slides\/slide\d+\.xml$/.test(p)).sort((a,b)=>(Number(a.match(/\d+/)?.[0])||0)-(Number(b.match(/\d+/)?.[0])||0));
+    else if(lower.endsWith(".docx")) paths=["word/document.xml"].filter(p=>zip.file(p));
+    let out=""; for(const p of paths.slice(0,80)){out+=xmlText(await zip.file(p).async("text"))+"\n";} return out;
+  }
+  async function extractCanvasBlobText(blob,name,type=""){
+    const lower=String(name||"").toLowerCase(); if(type.startsWith("text/")||/\.(txt|md|csv|html?)$/.test(lower)) return await blob.text();
+    if(type==="application/pdf"||lower.endsWith(".pdf")) return await extractPdfText(blob).catch(()=>"");
+    if(/\.(pptx|docx)$/.test(lower)) return await extractOfficeText(blob,name).catch(()=>""); return "";
+  }
+  async function enrichCanvasMaterial(item){
+    if(item.extractedText) return item; const type=String(item.type||"");
+    try{
+      if(type==="File" && item.content_id){
+        const meta=(await canvasRequest(`/api/v1/files/${encodeURIComponent(item.content_id)}`)).data; const target=safeHttpUrl(meta.url||meta.preview_url); if(target){const result=await invokeCanvasProxy(target,"binary"); const blob=result instanceof Blob?result:new Blob([result],{type:meta.content_type||"application/octet-stream"}); item.extractedText=(await extractCanvasBlobText(blob,meta.display_name||meta.filename||item.title,meta.content_type||blob.type)).slice(0,40000);}
+      }else if(item.url){
+        const data=(await canvasRequest(item.url)).data||{}; item.extractedText=stripCanvasHtml(data.body||data.description||data.message||"",40000);
+      }
+    }catch(error){ item.extractError=stripCanvasHtml(error?.message||String(error),250); }
+    return item;
+  }
+  function materialStudyHtml(item){
+    const text=normalizeText(item.extractedText||""); const sentences=text.split(/(?<=[.!?])\s+|\n+/).map(x=>x.trim()).filter(x=>x.length>25).slice(0,18);
+    return `<h3>${escapeHtml(item.title||item.type||"Material")}</h3><p><em>${escapeHtml(item.type||"Canvas item")}</em></p>${sentences.length?`<ul>${sentences.map(s=>`<li>${escapeHtml(s)}</li>`).join("")}</ul>`:`<p>Review this ${escapeHtml(item.type||"item")} in Canvas. Text was not available for automatic extraction.</p>`}`;
+  }
+  async function buildCanvasDraftOutline(cls,tst){
+    if(!canvasState.connected) alert("Canvas is disconnected, so this draft will use already-saved titles and any text extracted earlier.");
+    const materials=tst.canvasMaterials||[];
+    if(!materials.length){alert("No Canvas module materials are assigned to this test. Sync the course and redistribute modules first.");return;}
+    if(canvasState.connected){ for(let i=0;i<materials.length;i++){ await enrichCanvasMaterial(materials[i]); } }
+    const moduleIds=tst.canvasModuleIds||[]; let html=`<h1>${escapeHtml(cls.name)} — ${escapeHtml(tst.name)} Study Outline</h1><p><strong>Draft:</strong> assembled from Canvas modules and materials. Review and edit before approving.</p>`;
+    moduleIds.forEach(id=>{const group=materials.filter(m=>String(m.moduleId)===String(id)); if(!group.length)return; html+=`<h2>${escapeHtml(group[0].moduleName||"Module")}</h2>`+group.map(materialStudyHtml).join("\n");});
+    tst.canvasDraftOutlineHtml=html; openDocEditor({title:tst.name+" — Canvas Draft Outline",html,onSave:edited=>{tst.canvasDraftOutlineHtml=edited;save();},onAcceptTest:()=>{tst.testOutlineHtml=$("#docEditor").innerHTML;save();alert("Approved into the Test Outline.");}});
+  }
+  async function googleDriveAttachmentText(attachment,courseId){
+    if(!attachment?.driveFileId)return "";
+    try{
+      const meta=await invokeGoogleClassroom("drive_meta",{fileId:attachment.driveFileId,courseId:String(courseId||"")});
+      const {data,error}=await sb.functions.invoke(GOOGLE_CLASSROOM_FUNCTION,{body:{action:"drive_download",fileId:attachment.driveFileId,courseId:String(courseId||"")}});
+      if(error)throw new Error(await googleFunctionError(error,"Google Drive file could not be read."));
+      const mime=meta.downloadMimeType||meta.mimeType||"application/octet-stream";
+      const blob=data instanceof Blob?data:new Blob([data],{type:mime});
+      attachment.driveMimeType=meta.mimeType||mime;
+      attachment.extractedText=(await extractCanvasBlobText(blob,meta.name||attachment.title,mime)).slice(0,40000);
+      return attachment.extractedText;
+    }catch(error){attachment.extractError=stripCanvasHtml(error?.message||String(error),250);return "";}
+  }
+  function googleStudyHtml(item){
+    const attachmentText=(item.attachments||[]).map(a=>a.extractedText||"").filter(Boolean).join("\n");
+    const text=normalizeText([item.description||"",attachmentText].filter(Boolean).join("\n"));
+    const sentences=text.split(/(?<=[.!?])\s+|\n+/).map(x=>x.trim()).filter(x=>x.length>20).slice(0,24);
+    const links=(item.attachments||[]).map(a=>`<li>${escapeHtml(a.type)}: ${escapeHtml(a.title)}${a.extractedText?" (text included)":""}</li>`).join("");
+    return `<h3>${escapeHtml(item.title||item.type||"Material")}</h3><p><em>${escapeHtml(item.type||"Google Classroom item")}</em></p>${sentences.length?`<ul>${sentences.map(s=>`<li>${escapeHtml(s)}</li>`).join("")}</ul>`:`<p>Review this item in Google Classroom. Text was not available for automatic extraction.</p>`}${links?`<h4>Attached resources</h4><ul>${links}</ul>`:""}`;
+  }
+  async function buildGoogleDraftOutline(cls,tst){
+    if(!classroomState.connected)alert("Google Classroom is disconnected, so this draft will use already-saved descriptions and titles.");
+    const materials=tst.googleMaterials||[];if(!materials.length){alert("No Google Classroom topics or materials are assigned to this test. Sync the course and redistribute topics first.");return;}
+    if(classroomState.connected){for(const item of materials){for(const attachment of (item.attachments||[])){if(attachment.driveFileId&&!attachment.extractedText)await googleDriveAttachmentText(attachment,cls.googleClassroomCourseId);}}}
+    let html=`<h1>${escapeHtml(cls.name)} — ${escapeHtml(tst.name)} Study Outline</h1><p><strong>Draft:</strong> assembled from Google Classroom topics, classwork, materials, descriptions, and readable Drive attachments. Review and edit before approving.</p>`;
+    (tst.googleTopicIds||[]).forEach(id=>{const group=materials.filter(m=>String(m.topicId)===String(id));if(!group.length)return;html+=`<h2>${escapeHtml(group[0].topicName||"Classwork")}</h2>`+group.map(googleStudyHtml).join("\n");});
+    tst.googleDraftOutlineHtml=html;openDocEditor({title:tst.name+" — Google Classroom Draft Outline",html,onSave:edited=>{tst.googleDraftOutlineHtml=edited;save();},onAcceptTest:()=>{tst.testOutlineHtml=$("#docEditor").innerHTML;save();alert("Approved into the Test Outline.");}});
   }
 
   // ---------- Outline generation ----------
@@ -2284,6 +2815,7 @@
   function resetAll(){
     try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
     try{ localStorage.removeItem(CANVAS_URL_KEY); sessionStorage.removeItem(CANVAS_TOKEN_KEY); }catch(e){}
+    try{ sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY);sessionStorage.removeItem(GOOGLE_OAUTH_VERIFIER_KEY); }catch(e){}
     location.reload();
   }
   function crash(err){
@@ -2324,6 +2856,7 @@
     if(sb) await sb.auth.signOut();
     try{ sessionStorage.removeItem(CANVAS_TOKEN_KEY); }catch(e){}
     canvasState={connected:false,loading:false,loadingCourse:false,error:"",baseUrl:"",token:"",profile:null,courses:[],activeCourseId:"",activeTab:"overview",details:{},requests:0};
+    classroomState={connected:false,checked:false,loading:false,loadingCourse:false,error:"",profile:null,courses:[],activeCourseId:"",activeTab:"overview",details:{}};
     currentUser = null;
     cloudReady = false;
     currentWorkspace = "tracker";
