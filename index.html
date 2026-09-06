@@ -1,26 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>School Assignment Tracker</title>
-<style>html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f4f5;color:#0f172a}.boot{min-height:100vh;display:grid;place-items:center}.boot-card{background:#fff;border:1px solid #e4e4e7;border-radius:16px;padding:22px;box-shadow:0 12px 35px rgba(15,23,42,.08);max-width:520px}</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>School Assignment Tracker — v4.0 Omi Classroom</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:#f4f4f5;
+    }
+    #trackerFrame{
+      display:block;
+      width:100%;
+      height:100%;
+      border:0;
+      background:#f4f4f5;
+    }
+    #bootError{
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      padding:24px;
+      background:#f4f4f5;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      color:#0f172a;
+    }
+    #bootError .card{
+      max-width:680px;
+      margin:10vh auto;
+      background:#fff;
+      border:1px solid #e4e4e7;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 12px 35px rgba(15,23,42,.08);
+    }
+  </style>
 </head>
-<body><div class="boot"><div class="boot-card"><strong>Loading School Assignment Tracker…</strong><div style="margin-top:6px;font-size:13px;color:#64748b">Canvas, Google Classroom, Rewards, and Omi classroom transcripts</div></div></div>
-<script>
-(async function(){
-  try{
-    const r=await fetch('./tracker-v3.9-base.html?v=20260906-omi',{cache:'no-store'});
-    if(!r.ok) throw new Error('Could not load tracker base: '+r.status);
-    let html=await r.text();
-    html=html.replace(/School Assignment Tracker — v3\.9 Canvas \+ Classroom Scraper/g,'School Assignment Tracker — v4.0 Omi Classroom');
-    html=html.replace(/<div class="version-badge" aria-label="App version">v3\.9<\/div>/,'<div class="version-badge" aria-label="App version">v4.0</div>');
-    html=html.replace('</body>','<script src="./omi-classroom.js?v=20260906-2"><\/script><script src="./omi-auto-sync.js?v=20260906-1"><\/script></body>');
-    document.open(); document.write(html); document.close();
-  }catch(err){
-    document.body.innerHTML='<div class="boot"><div class="boot-card"><strong>Tracker failed to load.</strong><pre style="white-space:pre-wrap">'+String(err&&err.message||err).replace(/[&<>]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]})+'</pre></div></div>';
-  }
-})();
-</script>
+<body>
+  <iframe id="trackerFrame" title="School Assignment Tracker"></iframe>
+
+  <div id="bootError">
+    <div class="card">
+      <strong>Tracker failed to load.</strong>
+      <div id="bootErrorText" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    'use strict';
+
+    const frame = document.getElementById('trackerFrame');
+
+    // Preserve invite/auth query parameters and hashes when the wrapper loads the tracker.
+    frame.src = './tracker-v3.9-base.html?v=20260906-v4-wrapper'
+      + (window.location.search || '')
+      + (window.location.hash || '');
+
+    function showError(message){
+      document.getElementById('bootErrorText').textContent =
+        String(message || 'Unknown error');
+      document.getElementById('bootError').style.display = 'block';
+    }
+
+    function addScript(doc, src, id){
+      return new Promise((resolve,reject)=>{
+        if(doc.getElementById(id)){
+          resolve();
+          return;
+        }
+        const s = doc.createElement('script');
+        s.id = id;
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Could not load ' + src));
+        (doc.body || doc.documentElement).appendChild(s);
+      });
+    }
+
+    frame.addEventListener('load', async ()=>{
+      try{
+        const doc = frame.contentDocument;
+        if(!doc) throw new Error('Could not access the tracker page.');
+
+        doc.title = 'School Assignment Tracker — v4.0 Omi Classroom';
+
+        const title = doc.querySelector('h1');
+        if(title && /v3\.9/.test(title.textContent || '')){
+          title.textContent = (title.textContent || '')
+            .replace(/v3\.9/g,'v4.0')
+            .replace(/Canvas \+ Classroom Scraper/g,'Canvas + Classroom + Omi');
+        }
+
+        const badge = doc.querySelector('.version-badge');
+        if(badge){
+          badge.textContent = 'v4.0';
+          badge.setAttribute('aria-label','App version v4.0');
+        }
+
+        // Load the Omi UI first, then the automatic sync helper.
+        await addScript(doc,'./omi-classroom.js?v=20260906-4','omiClassroomScript');
+        await addScript(doc,'./omi-auto-sync.js?v=20260906-3','omiAutoSyncScript');
+      }catch(err){
+        console.error('Omi integration load error',err);
+        showError(err && err.message || err);
+      }
+    });
+
+    frame.addEventListener('error', ()=>{
+      showError('The tracker base page could not be loaded.');
+    });
+  })();
+  </script>
 </body>
 </html>
