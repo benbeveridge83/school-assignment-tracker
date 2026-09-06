@@ -15,7 +15,7 @@
     let html=await r.text();
     html=html.replace(/School Assignment Tracker — v3\.9 Canvas \+ Classroom Scraper/g,'School Assignment Tracker — v4.0 Omi Classroom');
     html=html.replace(/<div class="version-badge" aria-label="App version">v3\.9<\/div>/,'<div class="version-badge" aria-label="App version">v4.0</div>');
-    html=html.replace('</body>','<script src="./omi-classroom.js?v=20260906-1"><\/script></body>');
+    html=html.replace('</body>','<script src="./omi-classroom.js?v=20260906-2"><\/script><script src="./omi-auto-sync.js?v=20260906-1"><\/script></body>');
     document.open(); document.write(html); document.close();
   }catch(err){
     document.body.innerHTML='<div class="boot"><div class="boot-card"><strong>Tracker failed to load.</strong><pre style="white-space:pre-wrap">'+String(err&&err.message||err).replace(/[&<>]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]})+'</pre></div></div>';
